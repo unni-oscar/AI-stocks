@@ -1,14 +1,25 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from '@/components/layout/Layout'
 import HomePage from '@/pages/HomePage'
 import DashboardPage from '@/pages/DashboardPage'
+import LoginPage from '@/pages/LoginPage'
+import { isAuthenticated } from '@/utils/auth'
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const location = useLocation()
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+  return children
+}
 
 function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
       </Routes>
     </Layout>
   )

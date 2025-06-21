@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { removeToken } from '@/utils/auth'
 
 interface ApiResponse {
   status: string
@@ -16,6 +18,7 @@ const DashboardPage: React.FC = () => {
   const [apiData, setApiData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchApiData = async () => {
@@ -42,11 +45,22 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">
-          Real-time market overview and key statistics
-        </p>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <p className="text-gray-600">
+            Real-time market overview and key statistics
+          </p>
+        </div>
+        <button
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          onClick={() => {
+            removeToken()
+            navigate('/login')
+          }}
+        >
+          Logout
+        </button>
       </div>
 
       {/* API Communication Status */}

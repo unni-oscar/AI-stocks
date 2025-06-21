@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TestController;
+use App\Http\Controllers\Api\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,9 +26,9 @@ Route::options('/{any}', function () {
     return $response;
 })->where('any', '.*');
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+// Public routes
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
 // Test route for Phase 2
 Route::get('/test', [TestController::class, 'index']);
@@ -48,4 +49,15 @@ Route::get('/health', function () {
         'message' => 'Laravel API is running',
         'timestamp' => now()->toISOString()
     ]);
+});
+
+// Protected routes (require authentication)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', [AuthController::class, 'user']);
+    
+    // Original user route
+    Route::get('/user-info', function (Request $request) {
+        return $request->user();
+    });
 }); 
