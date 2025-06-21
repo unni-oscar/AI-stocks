@@ -1,0 +1,9 @@
+services:
+  frontend:
+    build: .
+    ports:
+      - "3033:3033"
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true 
