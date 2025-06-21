@@ -15,6 +15,13 @@ export default defineConfig({
     port: 3033,
     watch: {
       usePolling: true
+    },
+    proxy: {
+      '/api': {
+        target: 'http://stocks-backend:8000',
+        changeOrigin: true,
+        secure: false
+      }
     }
   }
 }) 

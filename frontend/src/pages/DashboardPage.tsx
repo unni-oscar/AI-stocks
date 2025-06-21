@@ -1,6 +1,45 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+
+interface ApiResponse {
+  status: string
+  message: string
+  data: {
+    framework: string
+    version: string
+    database: string
+    port: string
+    timestamp: string
+  }
+}
 
 const DashboardPage: React.FC = () => {
+  const [apiData, setApiData] = useState<ApiResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchApiData = async () => {
+      try {
+        setLoading(true)
+        // Use relative URL that will be proxied by Vite to the backend
+        const response = await fetch('/api/test')
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const data = await response.json()
+        setApiData(data)
+        setError(null)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data')
+        console.error('API Error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchApiData()
+  }, [])
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
@@ -8,6 +47,47 @@ const DashboardPage: React.FC = () => {
         <p className="text-gray-600">
           Real-time market overview and key statistics
         </p>
+      </div>
+
+      {/* API Communication Status */}
+      <div className="card mb-8">
+        <h2 className="text-xl font-semibold mb-4">Backend API Status</h2>
+        {loading && (
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span className="text-gray-600">Connecting to backend...</span>
+          </div>
+        )}
+        
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <span className="text-red-600 text-xl mr-2">❌</span>
+              <div>
+                <p className="font-medium text-red-800">API Connection Failed</p>
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {apiData && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center">
+              <span className="text-green-600 text-xl mr-2">✅</span>
+              <div>
+                <p className="font-medium text-green-800">Backend Connected Successfully!</p>
+                <div className="mt-2 text-sm text-green-700">
+                  <p><strong>Message:</strong> {apiData.message}</p>
+                  <p><strong>Framework:</strong> {apiData.data.framework} {apiData.data.version}</p>
+                  <p><strong>Database:</strong> {apiData.data.database}</p>
+                  <p><strong>Port:</strong> {apiData.data.port}</p>
+                  <p><strong>Timestamp:</strong> {new Date(apiData.data.timestamp).toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

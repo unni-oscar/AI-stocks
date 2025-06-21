@@ -6,8 +6,6 @@ services:
     container_name: stocks-backend
     restart: unless-stopped
     working_dir: /var/www/
-    volumes:
-      - ./:/var/www
     ports:
       - "3034:8000"
     networks:
