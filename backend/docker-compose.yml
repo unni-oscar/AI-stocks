@@ -1,0 +1,38 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stocks-backend
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./:/var/www
+    ports:
+      - "3034:8000"
+    networks:
+      - stocks-network
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: stocks-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: stocks_db
+      POSTGRES_USER: stocks_user
+      POSTGRES_PASSWORD: stocks_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - stocks-network
+
+networks:
+  stocks-network:
+    driver: bridge
+
+volumes:
+  dbdata: 
