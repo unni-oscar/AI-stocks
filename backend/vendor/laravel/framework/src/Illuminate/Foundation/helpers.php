@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Broadcasting\FakePendingBroadcast;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
@@ -16,10 +17,14 @@ use Illuminate\Foundation\Bus\PendingClosureDispatch;
 use Illuminate\Foundation\Bus\PendingDispatch;
 use Illuminate\Foundation\Mix;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Log\Context\Repository as ContextRepository;
 use Illuminate\Queue\CallQueuedClosure;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Uri;
+use League\Uri\Contracts\UriInterface;
 use Symfony\Component\HttpFoundation\Response;
 
 if (! function_exists('abort')) {
@@ -28,11 +33,11 @@ if (! function_exists('abort')) {
      *
      * @param  \Symfony\Component\HttpFoundation\Response|\Illuminate\Contracts\Support\Responsable|int  $code
      * @param  string  $message
-     * @param  array  $headers
      * @return never
      *
      * @throws \Symfony\Component\HttpKernel\Exception\HttpException
      * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws \Illuminate\Http\Exceptions\HttpResponseException
      */
     function abort($code, $message = '', array $headers = [])
     {
@@ -53,7 +58,6 @@ if (! function_exists('abort_if')) {
      * @param  bool  $boolean
      * @param  \Symfony\Component\HttpFoundation\Response|\Illuminate\Contracts\Support\Responsable|int  $code
      * @param  string  $message
-     * @param  array  $headers
      * @return void
      *
      * @throws \Symfony\Component\HttpKernel\Exception\HttpException
@@ -74,7 +78,6 @@ if (! function_exists('abort_unless')) {
      * @param  bool  $boolean
      * @param  \Symfony\Component\HttpFoundation\Response|\Illuminate\Contracts\Support\Responsable|int  $code
      * @param  string  $message
-     * @param  array  $headers
      * @return void
      *
      * @throws \Symfony\Component\HttpKernel\Exception\HttpException
@@ -107,9 +110,10 @@ if (! function_exists('app')) {
     /**
      * Get the available container instance.
      *
-     * @param  string|null  $abstract
-     * @param  array  $parameters
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Foundation\Application|mixed
+     * @template TClass of object
+     *
+     * @param  string|class-string<TClass>|null  $abstract
+     * @return ($abstract is class-string<TClass> ? TClass : ($abstract is null ? \Illuminate\Foundation\Application : mixed))
      */
     function app($abstract = null, array $parameters = [])
     {
@@ -153,7 +157,7 @@ if (! function_exists('auth')) {
      * Get the available auth instance.
      *
      * @param  string|null  $guard
-     * @return \Illuminate\Contracts\Auth\Factory|\Illuminate\Contracts\Auth\Guard|\Illuminate\Contracts\Auth\StatefulGuard
+     * @return ($guard is null ? \Illuminate\Contracts\Auth\Factory : \Illuminate\Contracts\Auth\StatefulGuard)
      */
     function auth($guard = null)
     {
@@ -220,34 +224,71 @@ if (! function_exists('broadcast')) {
     }
 }
 
+if (! function_exists('broadcast_if')) {
+    /**
+     * Begin broadcasting an event if the given condition is true.
+     *
+     * @param  bool  $boolean
+     * @param  mixed|null  $event
+     * @return \Illuminate\Broadcasting\PendingBroadcast
+     */
+    function broadcast_if($boolean, $event = null)
+    {
+        if ($boolean) {
+            return app(BroadcastFactory::class)->event($event);
+        } else {
+            return new FakePendingBroadcast;
+        }
+    }
+}
+
+if (! function_exists('broadcast_unless')) {
+    /**
+     * Begin broadcasting an event unless the given condition is true.
+     *
+     * @param  bool  $boolean
+     * @param  mixed|null  $event
+     * @return \Illuminate\Broadcasting\PendingBroadcast
+     */
+    function broadcast_unless($boolean, $event = null)
+    {
+        if (! $boolean) {
+            return app(BroadcastFactory::class)->event($event);
+        } else {
+            return new FakePendingBroadcast;
+        }
+    }
+}
+
 if (! function_exists('cache')) {
     /**
      * Get / set the specified cache value.
      *
      * If an array is passed, we'll assume you want to put to the cache.
      *
-     * @param  mixed  ...$arguments  key|key,default|data,expiration|null
-     * @return mixed|\Illuminate\Cache\CacheManager
+     * @param  string|array<string, mixed>|null  $key  key|data
+     * @param  mixed  $default  default|expiration|null
+     * @return ($key is null ? \Illuminate\Cache\CacheManager : ($key is string ? mixed : bool))
      *
      * @throws \InvalidArgumentException
      */
-    function cache(...$arguments)
+    function cache($key = null, $default = null)
     {
-        if (empty($arguments)) {
+        if (is_null($key)) {
             return app('cache');
         }
 
-        if (is_string($arguments[0])) {
-            return app('cache')->get(...$arguments);
+        if (is_string($key)) {
+            return app('cache')->get($key, $default);
         }
 
-        if (! is_array($arguments[0])) {
+        if (! is_array($key)) {
             throw new InvalidArgumentException(
                 'When setting a value in the cache, you must pass an array of key / value pairs.'
             );
         }
 
-        return app('cache')->put(key($arguments[0]), reset($arguments[0]), $arguments[1] ?? null);
+        return app('cache')->put(key($key), reset($key), ttl: $default);
     }
 }
 
@@ -257,9 +298,9 @@ if (! function_exists('config')) {
      *
      * If an array is passed as the key, we will assume you want to set an array of values.
      *
-     * @param  array|string|null  $key
+     * @param  array<string, mixed>|string|null  $key
      * @param  mixed  $default
-     * @return mixed|\Illuminate\Config\Repository
+     * @return ($key is null ? \Illuminate\Config\Repository : ($key is string ? mixed : null))
      */
     function config($key = null, $default = null)
     {
@@ -288,6 +329,26 @@ if (! function_exists('config_path')) {
     }
 }
 
+if (! function_exists('context')) {
+    /**
+     * Get / set the specified context value.
+     *
+     * @param  array|string|null  $key
+     * @param  mixed  $default
+     * @return ($key is string ? mixed : \Illuminate\Log\Context\Repository)
+     */
+    function context($key = null, $default = null)
+    {
+        $context = app(ContextRepository::class);
+
+        return match (true) {
+            is_null($key) => $context,
+            is_array($key) => $context->add($key),
+            default => $context->get($key, $default),
+        };
+    }
+}
+
 if (! function_exists('cookie')) {
     /**
      * Create a new cookie instance.
@@ -301,7 +362,7 @@ if (! function_exists('cookie')) {
      * @param  bool  $httpOnly
      * @param  bool  $raw
      * @param  string|null  $sameSite
-     * @return \Illuminate\Cookie\CookieJar|\Symfony\Component\HttpFoundation\Cookie
+     * @return ($name is null ? \Illuminate\Cookie\CookieJar : \Symfony\Component\HttpFoundation\Cookie)
      */
     function cookie($name = null, $value = null, $minutes = 0, $path = null, $domain = null, $secure = null, $httpOnly = true, $raw = false, $sameSite = null)
     {
@@ -374,18 +435,30 @@ if (! function_exists('decrypt')) {
     }
 }
 
+if (! function_exists('defer')) {
+    /**
+     * Defer execution of the given callback.
+     *
+     * @return \Illuminate\Support\Defer\DeferredCallback
+     */
+    function defer(?callable $callback = null, ?string $name = null, bool $always = false)
+    {
+        return \Illuminate\Support\defer($callback, $name, $always);
+    }
+}
+
 if (! function_exists('dispatch')) {
     /**
      * Dispatch a job to its appropriate handler.
      *
      * @param  mixed  $job
-     * @return \Illuminate\Foundation\Bus\PendingDispatch
+     * @return ($job is \Closure ? \Illuminate\Foundation\Bus\PendingClosureDispatch : \Illuminate\Foundation\Bus\PendingDispatch)
      */
     function dispatch($job)
     {
         return $job instanceof Closure
-                ? new PendingClosureDispatch(CallQueuedClosure::create($job))
-                : new PendingDispatch($job);
+            ? new PendingClosureDispatch(CallQueuedClosure::create($job))
+            : new PendingDispatch($job);
     }
 }
 
@@ -473,24 +546,6 @@ if (! function_exists('info')) {
     }
 }
 
-if (! function_exists('logger')) {
-    /**
-     * Log a debug message to the logs.
-     *
-     * @param  string|null  $message
-     * @param  array  $context
-     * @return \Illuminate\Log\LogManager|null
-     */
-    function logger($message = null, array $context = [])
-    {
-        if (is_null($message)) {
-            return app('log');
-        }
-
-        return app('log')->debug($message, $context);
-    }
-}
-
 if (! function_exists('lang_path')) {
     /**
      * Get the path to the language folder.
@@ -504,12 +559,29 @@ if (! function_exists('lang_path')) {
     }
 }
 
+if (! function_exists('logger')) {
+    /**
+     * Log a debug message to the logs.
+     *
+     * @param  string|null  $message
+     * @return ($message is null ? \Illuminate\Log\LogManager : null)
+     */
+    function logger($message = null, array $context = [])
+    {
+        if (is_null($message)) {
+            return app('log');
+        }
+
+        return app('log')->debug($message, $context);
+    }
+}
+
 if (! function_exists('logs')) {
     /**
      * Get a log driver instance.
      *
      * @param  string|null  $driver
-     * @return \Illuminate\Log\LogManager|\Psr\Log\LoggerInterface
+     * @return ($driver is null ? \Illuminate\Log\LogManager : \Psr\Log\LoggerInterface)
      */
     function logs($driver = null)
     {
@@ -564,8 +636,8 @@ if (! function_exists('old')) {
      * Retrieve an old input item.
      *
      * @param  string|null  $key
-     * @param  mixed  $default
-     * @return mixed
+     * @param  \Illuminate\Database\Eloquent\Model|string|array|null  $default
+     * @return string|array|null
      */
     function old($key = null, $default = null)
     {
@@ -638,7 +710,7 @@ if (! function_exists('redirect')) {
      * @param  int  $status
      * @param  array  $headers
      * @param  bool|null  $secure
-     * @return \Illuminate\Routing\Redirector|\Illuminate\Http\RedirectResponse
+     * @return ($to is null ? \Illuminate\Routing\Redirector : \Illuminate\Http\RedirectResponse)
      */
     function redirect($to = null, $status = 302, $headers = [], $secure = null)
     {
@@ -703,9 +775,9 @@ if (! function_exists('request')) {
     /**
      * Get an instance of the current request or an input item from the request.
      *
-     * @param  array|string|null  $key
+     * @param  list<string>|string|null  $key
      * @param  mixed  $default
-     * @return mixed|\Illuminate\Http\Request|string|array|null
+     * @return ($key is null ? \Illuminate\Http\Request : ($key is string ? mixed : array<string, mixed>))
      */
     function request($key = null, $default = null)
     {
@@ -727,13 +799,13 @@ if (! function_exists('rescue')) {
     /**
      * Catch a potential exception and return a default value.
      *
-     * @template TRescueValue
-     * @template TRescueFallback
+     * @template TValue
+     * @template TFallback
      *
-     * @param  callable(): TRescueValue  $callback
-     * @param  (callable(\Throwable): TRescueFallback)|TRescueFallback  $rescue
-     * @param  bool|callable  $report
-     * @return TRescueValue|TRescueFallback
+     * @param  callable(): TValue  $callback
+     * @param  (callable(\Throwable): TFallback)|TFallback  $rescue
+     * @param  bool|callable(\Throwable): bool  $report
+     * @return TValue|TFallback
      */
     function rescue(callable $callback, $rescue = null, $report = true)
     {
@@ -753,9 +825,10 @@ if (! function_exists('resolve')) {
     /**
      * Resolve a service from the container.
      *
-     * @param  string  $name
-     * @param  array  $parameters
-     * @return mixed
+     * @template TClass of object
+     *
+     * @param  string|class-string<TClass>  $name
+     * @return ($name is class-string<TClass> ? TClass : mixed)
      */
     function resolve($name, array $parameters = [])
     {
@@ -782,10 +855,9 @@ if (! function_exists('response')) {
      *
      * @param  \Illuminate\Contracts\View\View|string|array|null  $content
      * @param  int  $status
-     * @param  array  $headers
-     * @return \Illuminate\Http\Response|\Illuminate\Contracts\Routing\ResponseFactory
+     * @return ($content is null ? \Illuminate\Contracts\Routing\ResponseFactory : \Illuminate\Http\Response)
      */
-    function response($content = '', $status = 200, array $headers = [])
+    function response($content = null, $status = 200, array $headers = [])
     {
         $factory = app(ResponseFactory::class);
 
@@ -793,7 +865,7 @@ if (! function_exists('response')) {
             return $factory;
         }
 
-        return $factory->make($content, $status, $headers);
+        return $factory->make($content ?? '', $status, $headers);
     }
 }
 
@@ -801,7 +873,7 @@ if (! function_exists('route')) {
     /**
      * Generate the URL to a named route.
      *
-     * @param  string  $name
+     * @param  \BackedEnum|string  $name
      * @param  mixed  $parameters
      * @param  bool  $absolute
      * @return string
@@ -845,9 +917,9 @@ if (! function_exists('session')) {
      *
      * If an array is passed as the key, we will assume you want to set an array of values.
      *
-     * @param  array|string|null  $key
+     * @param  array<string, mixed>|string|null  $key
      * @param  mixed  $default
-     * @return mixed|\Illuminate\Session\Store|\Illuminate\Session\SessionManager
+     * @return ($key is null ? \Illuminate\Session\SessionManager : ($key is string ? mixed : null))
      */
     function session($key = null, $default = null)
     {
@@ -880,7 +952,7 @@ if (! function_exists('to_route')) {
     /**
      * Create a new redirect response to a named route.
      *
-     * @param  string  $route
+     * @param  \BackedEnum|string  $route
      * @param  mixed  $parameters
      * @param  int  $status
      * @param  array  $headers
@@ -912,7 +984,7 @@ if (! function_exists('trans')) {
      * @param  string|null  $key
      * @param  array  $replace
      * @param  string|null  $locale
-     * @return \Illuminate\Contracts\Translation\Translator|string|array|null
+     * @return ($key is null ? \Illuminate\Contracts\Translation\Translator : array|string)
      */
     function trans($key = null, $replace = [], $locale = null)
     {
@@ -930,7 +1002,6 @@ if (! function_exists('trans_choice')) {
      *
      * @param  string  $key
      * @param  \Countable|int|float|array  $number
-     * @param  array  $replace
      * @param  string|null  $locale
      * @return string
      */
@@ -959,14 +1030,28 @@ if (! function_exists('__')) {
     }
 }
 
+if (! function_exists('uri')) {
+    /**
+     * Generate a URI for the application.
+     */
+    function uri(UriInterface|Stringable|array|string $uri, mixed $parameters = [], bool $absolute = true): Uri
+    {
+        return match (true) {
+            is_array($uri) || str_contains($uri, '\\') => Uri::action($uri, $parameters, $absolute),
+            str_contains($uri, '.') && Route::has($uri) => Uri::route($uri, $parameters, $absolute),
+            default => Uri::of($uri),
+        };
+    }
+}
+
 if (! function_exists('url')) {
     /**
-     * Generate a url for the application.
+     * Generate a URL for the application.
      *
      * @param  string|null  $path
      * @param  mixed  $parameters
      * @param  bool|null  $secure
-     * @return \Illuminate\Contracts\Routing\UrlGenerator|string
+     * @return ($path is null ? \Illuminate\Contracts\Routing\UrlGenerator : string)
      */
     function url($path = null, $parameters = [], $secure = null)
     {
@@ -982,13 +1067,9 @@ if (! function_exists('validator')) {
     /**
      * Create a new Validator instance.
      *
-     * @param  array  $data
-     * @param  array  $rules
-     * @param  array  $messages
-     * @param  array  $attributes
-     * @return \Illuminate\Contracts\Validation\Validator|\Illuminate\Contracts\Validation\Factory
+     * @return ($data is null ? \Illuminate\Contracts\Validation\Factory : \Illuminate\Contracts\Validation\Validator)
      */
-    function validator(array $data = [], array $rules = [], array $messages = [], array $attributes = [])
+    function validator(?array $data = null, array $rules = [], array $messages = [], array $attributes = [])
     {
         $factory = app(ValidationFactory::class);
 
@@ -996,7 +1077,7 @@ if (! function_exists('validator')) {
             return $factory;
         }
 
-        return $factory->make($data, $rules, $messages, $attributes);
+        return $factory->make($data ?? [], $rules, $messages, $attributes);
     }
 }
 
@@ -1007,7 +1088,7 @@ if (! function_exists('view')) {
      * @param  string|null  $view
      * @param  \Illuminate\Contracts\Support\Arrayable|array  $data
      * @param  array  $mergeData
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Contracts\View\Factory
+     * @return ($view is null ? \Illuminate\Contracts\View\Factory : \Illuminate\Contracts\View\View)
      */
     function view($view = null, $data = [], $mergeData = [])
     {

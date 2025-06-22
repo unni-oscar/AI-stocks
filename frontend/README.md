@@ -96,7 +96,7 @@ src/
 
 The application can be configured using environment variables:
 
-- `VITE_API_URL` - Backend API URL (default: http://localhost:3034)
+- `VITE_API_URL` - Backend API URL (default: http://localhost:3035)
 
 ## Contributing
 

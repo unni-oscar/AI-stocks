@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { removeToken } from '@/utils/auth'
 
 interface ApiResponse {
@@ -25,7 +25,7 @@ const DashboardPage: React.FC = () => {
       try {
         setLoading(true)
         // Use direct backend URL since we removed the proxy
-        const response = await fetch('http://localhost:3034/api/test', {
+        const response = await fetch('http://localhost:3035/api/test', {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
@@ -57,15 +57,23 @@ const DashboardPage: React.FC = () => {
             Real-time market overview and key statistics
           </p>
         </div>
-        <button
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          onClick={() => {
-            removeToken()
-            navigate('/login')
-          }}
-        >
-          Logout
-        </button>
+        <div className="flex space-x-4">
+          <Link
+            to="/bhavcopy"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+          >
+            NSE Data Fetcher
+          </Link>
+          <button
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            onClick={() => {
+              removeToken()
+              navigate('/login')
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* API Communication Status */}

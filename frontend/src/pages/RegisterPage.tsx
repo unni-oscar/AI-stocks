@@ -23,7 +23,7 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3034/api/register', {
+      const response = await fetch('http://localhost:3035/api/register', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
