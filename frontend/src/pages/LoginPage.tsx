@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -13,19 +13,26 @@ const LoginPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch('http://localhost:3034/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ email, password })
       })
+      
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || 'Login failed')
+        const errorText = await response.text()
+        console.error('Response error:', response.status, errorText)
+        throw new Error('Login failed')
       }
+      
       const data = await response.json()
       localStorage.setItem('auth_token', data.data.token)
       navigate('/dashboard')
     } catch (err: any) {
+      console.error('Login error:', err)
       setError(err.message || 'Login failed')
     } finally {
       setLoading(false)
@@ -64,6 +71,15 @@ const LoginPage: React.FC = () => {
         >
           {loading ? 'Logging in...' : 'Login'}
         </button>
+        
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+              Sign up here
+            </Link>
+          </p>
+        </div>
       </form>
     </div>
   )

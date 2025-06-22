@@ -24,8 +24,13 @@ const DashboardPage: React.FC = () => {
     const fetchApiData = async () => {
       try {
         setLoading(true)
-        // Use relative URL that will be proxied by Vite to the backend
-        const response = await fetch('/api/test')
+        // Use direct backend URL since we removed the proxy
+        const response = await fetch('http://localhost:3034/api/test', {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        })
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
