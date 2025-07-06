@@ -299,24 +299,19 @@ const AllStocksPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">All EQ Stocks</h1>
-        <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          onClick={() => navigate(-1)}
-        >
-          Back
-        </button>
+    <div>
+      <div className="mt-4 mb-6">
+        <h1 className="text-3xl text-gray-900">All EQ Stocks</h1>
+        <p className="text-gray-500 text-base mt-1">Browse and analyze all available EQ stocks</p>
       </div>
-      <div className="flex items-center space-x-4 mb-4">
+      <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4">
         <div className="relative w-full max-w-xs">
           <input
             type="text"
             placeholder="Search stocks..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full text-sm"
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,134 +319,80 @@ const AllStocksPage: React.FC = () => {
             </svg>
           </div>
         </div>
-        <div className="flex-1"></div>
-        <div className="flex items-center space-x-2">
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
           <label htmlFor="date-picker" className="text-sm text-gray-700">Date:</label>
           <input
             id="date-picker"
             type="date"
             value={selectedDate}
             onChange={e => setSelectedDate(e.target.value)}
-            className="border border-gray-300 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="border border-gray-300 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             style={{ minWidth: 0 }}
           />
         </div>
       </div>
-      <div className="card">
-        {eqStocksLoading && (
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Loading stocks...</span>
-          </div>
-        )}
-        {eqStocksError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <span className="text-red-600 text-xl mr-2">❌</span>
-              <div>
-                <p className="font-medium text-red-800">Error Loading Stocks</p>
-                <p className="text-sm text-red-600">{eqStocksError}</p>
-              </div>
-            </div>
-          </div>
-        )}
-        {eqStocks && eqStocks.data.stocks.length > 0 && (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('symbol')}>Symbol{renderSortArrow('symbol')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('price_movement_pct')}>Price Movement %{renderSortArrow('price_movement_pct')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('avg_180_days_deliv')}>Avg Delivery % (180d){renderSortArrow('avg_180_days_deliv')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('avg_30_days_deliv')}>Avg Delivery % (30d){renderSortArrow('avg_30_days_deliv')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('avg_7_days_deliv')}>Avg Delivery % (7d){renderSortArrow('avg_7_days_deliv')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('avg_3_days_deliv')}>Avg Delivery % (3d){renderSortArrow('avg_3_days_deliv')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('deliv_per')}>Delivery % (1d){renderSortArrow('deliv_per')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('turnover_lacs')}>Turnover (Lacs){renderSortArrow('turnover_lacs')}</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Strength</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedStocks.map((stock, index) => {
-                    const conditionMet = getConditionMet(stock);
-                    return (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+      <div className="overflow-x-auto rounded border bg-white">
+        <table className="min-w-full bg-white">
+          <thead>
+            <tr className="text-left text-xs text-gray-500">
+              <th className="px-4 py-3">Symbol</th>
+              <th className="px-4 py-3 text-right">Price</th>
+              <th className="px-4 py-3 text-right">% (180d)</th>
+              <th className="px-4 py-3 text-right">% (30d)</th>
+              <th className="px-4 py-3 text-right">% (7d)</th>
+              <th className="px-4 py-3 text-right">% (3d)</th>
+              <th className="px-4 py-3 text-right">% (1d)</th>
+              <th className="px-4 py-3 text-right">Turnover (Cr)</th>
+              <th className="px-4 py-3">Strength</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eqStocksLoading ? (
+              <tr><td colSpan={9} className="text-center py-6">Loading...</td></tr>
+            ) : eqStocksError ? (
+              <tr><td colSpan={9} className="text-center py-6 text-red-500">{eqStocksError}</td></tr>
+            ) : eqStocks && eqStocks.data.stocks.length === 0 ? (
+              <tr><td colSpan={9} className="text-center py-6">No data</td></tr>
+            ) : (
+              sortedStocks.map((stock, index) => {
+                const conditionMet = getConditionMet(stock);
+                return (
+                  <tr key={index} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div>
+                        <div className="text-gray-900 text-sm">
                           <a
                             href={`/stocks/${encodeURIComponent(stock.symbol)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-700 hover:underline font-medium"
+                            className="hover:underline"
                           >
                             {stock.symbol}
                           </a>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700 font-semibold">
-                          {stock.price_movement_pct !== null ? `${Number(stock.price_movement_pct).toFixed(2)}%` : 'N/A'}
-                        </td>
-                        <td className={"px-6 py-4 whitespace-nowrap text-sm text-gray-900"}>{stock.avg_180_days_deliv !== null ? `${Number(stock.avg_180_days_deliv).toFixed(2)}%` : 'N/A'}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          Number(stock.avg_30_days_deliv) >= Number(stock.avg_180_days_deliv) ? 'bg-green-100 text-gray-900 font-bold' : 'text-gray-900'
-                        }`}>{stock.avg_30_days_deliv !== null ? `${Number(stock.avg_30_days_deliv).toFixed(2)}%` : 'N/A'}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          stock.avg_7_days_deliv !== null && stock.avg_30_days_deliv !== null && Number(stock.avg_7_days_deliv) >= Number(stock.avg_30_days_deliv) ? 'bg-green-100 text-gray-900 font-bold' : 'text-gray-900'
-                        }`}>{stock.avg_7_days_deliv !== null ? `${Number(stock.avg_7_days_deliv).toFixed(2)}%` : 'N/A'}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                          stock.avg_3_days_deliv !== null && stock.avg_7_days_deliv !== null && Number(stock.avg_3_days_deliv) >= Number(stock.avg_7_days_deliv) ? 'bg-green-100 text-gray-900 font-bold' : 'text-gray-900'
-                        }`}>{stock.avg_3_days_deliv !== null ? `${Number(stock.avg_3_days_deliv).toFixed(2)}%` : 'N/A'}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                          stock.deliv_per !== null && stock.avg_3_days_deliv !== null && Number(stock.deliv_per) >= Number(stock.avg_3_days_deliv) ? 'bg-green-100 text-gray-900 font-bold' : 'text-gray-900'
-                        }`}><span>{stock.deliv_per !== null ? `${Number(stock.deliv_per).toFixed(2)}%` : 'N/A'}</span></td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {stock.turnover_lacs !== null ? Number(stock.turnover_lacs).toFixed(2) : 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getConditionColor(conditionMet)}`}>
-                            {getConditionBadge(conditionMet)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {/* Pagination */}
-            {eqStocks.data.pagination.last_page > 1 && (
-              <div className="flex items-center justify-between mt-6">
-                <div className="text-sm text-gray-700">
-                  Showing {eqStocks.data.pagination.from} to {eqStocks.data.pagination.to} of {eqStocks.data.pagination.total} results
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md">
-                    Page {currentPage} of {eqStocks.data.pagination.last_page}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === eqStocks.data.pagination.last_page}
-                    className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                      {stock.price_movement_pct !== null ? `${Number(stock.price_movement_pct).toFixed(2)}` : 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-right">{stock.avg_180_days_deliv !== null ? `${Number(stock.avg_180_days_deliv).toFixed(2)}` : 'N/A'}</td>
+                    <td className={`px-4 py-3 text-sm text-right ${Number(stock.avg_30_days_deliv) >= Number(stock.avg_180_days_deliv) ? 'bg-green-100 text-gray-900' : 'text-gray-900'}`}>{stock.avg_30_days_deliv !== null ? `${Number(stock.avg_30_days_deliv).toFixed(2)}` : 'N/A'}</td>
+                    <td className={`px-4 py-3 text-sm text-right ${stock.avg_7_days_deliv !== null && stock.avg_30_days_deliv !== null && Number(stock.avg_7_days_deliv) >= Number(stock.avg_30_days_deliv) ? 'bg-green-100 text-gray-900' : 'text-gray-900'}`}>{stock.avg_7_days_deliv !== null ? `${Number(stock.avg_7_days_deliv).toFixed(2)}` : 'N/A'}</td>
+                    <td className={`px-4 py-3 text-sm text-right ${stock.avg_3_days_deliv !== null && stock.avg_7_days_deliv !== null && Number(stock.avg_3_days_deliv) >= Number(stock.avg_7_days_deliv) ? 'bg-green-100 text-gray-900' : 'text-gray-900'}`}>{stock.avg_3_days_deliv !== null ? `${Number(stock.avg_3_days_deliv).toFixed(2)}` : 'N/A'}</td>
+                    <td className={`px-4 py-3 text-sm text-right ${stock.deliv_per !== null && stock.avg_3_days_deliv !== null && Number(stock.deliv_per) >= Number(stock.avg_3_days_deliv) ? 'bg-green-100 text-gray-900' : 'text-gray-900'}`}><span>{stock.deliv_per !== null ? `${Number(stock.deliv_per).toFixed(2)}` : 'N/A'}</span></td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                      {stock.turnover_lacs !== null ? Number(stock.turnover_lacs).toFixed(2) : 'N/A'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getConditionColor(conditionMet)}`}>{getConditionBadge(conditionMet)}</span>
+                    </td>
+                  </tr>
+                );
+              })
             )}
-          </>
-        )}
-        {eqStocks && eqStocks.data.stocks.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No EQ stocks found.</p>
-            <p className="text-sm text-gray-400 mt-2">Try processing some data first or check your search term.</p>
-          </div>
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
