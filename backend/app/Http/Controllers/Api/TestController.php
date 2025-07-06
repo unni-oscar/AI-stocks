@@ -9,14 +9,19 @@ class TestController extends Controller
 {
     public function index()
     {
+        $dbConnection = config('database.default');
+        $dbConfig = config('database.connections.' . $dbConnection);
+        $dbType = $dbConnection;
+        $dbPort = $dbConfig['port'] ?? null;
+
         $response = response()->json([
             'status' => 'success',
             'message' => 'Laravel API is working!',
             'data' => [
                 'framework' => 'Laravel',
-                'version' => '10.x',
-                'database' => 'PostgreSQL',
-                'port' => '3034',
+                'version' => app()->version(),
+                'database' => $dbType,
+                'port' => $dbPort,
                 'timestamp' => now()->toISOString()
             ]
         ]);

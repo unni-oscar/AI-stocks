@@ -144,8 +144,8 @@ const HomePage: React.FC = () => {
             <span>Chart</span>
           </div>
         </div>
-      </div>
-
+        </div>
+        
       {/* Second Row: Connect & Report Sharing */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Connect Today & Join */}
@@ -271,7 +271,7 @@ const HomePage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">A</span>
-                <div>
+          <div>
                   <div className="font-medium">Arlene McCoy</div>
                   <div className="text-xs text-gray-400">34 commits</div>
                 </div>
@@ -376,7 +376,7 @@ const HomePage: React.FC = () => {
               </label>
             </div>
             <div className="flex items-center justify-between p-6">
-              <div>
+          <div>
                 <div className="font-medium text-gray-900">Export your data</div>
                 <div className="text-gray-400 text-sm">Download a copy of your data</div>
               </div>

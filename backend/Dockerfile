@@ -23,11 +23,11 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions with explicit MySQL support
 RUN docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd \
-    && docker-php-ext-install -j$(nproc) pdo_mysql mbstring exif pcntl bcmath gd zip
+    && docker-php-ext-install -j$(nproc) pdo_mysql mysqli mbstring exif pcntl bcmath gd zip
 
 # Create custom PHP configuration for MySQL
 RUN echo "extension=pdo_mysql" > /usr/local/etc/php/conf.d/20-pdo_mysql.ini \
-    && echo "extension=mysqlnd" > /usr/local/etc/php/conf.d/21-mysqlnd.ini
+    && echo "extension=mysqli" > /usr/local/etc/php/conf.d/21-mysqli.ini
 
 # Verify MySQL extensions are installed
 RUN php -m | grep -i mysql

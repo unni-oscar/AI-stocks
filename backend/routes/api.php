@@ -67,4 +67,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock-master/hierarchical-filters', [StockMasterController::class, 'getHierarchicalFilters']);
     Route::get('/stock-master/stocks', [StockMasterController::class, 'getStocks']);
     Route::get('/stock-master/statistics', [StockMasterController::class, 'getStatistics']);
+});
+
+Route::get('/ping', function () {
+    return response()->json(['pong' => true]);
 }); 
