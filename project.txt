@@ -162,3 +162,18 @@ State Management        | Zustand or TanStack Query
 Calendar UI             | react-calendar, custom grid
 File download/backend   | Laravel Http + Storage
 Auth route protection   | React Router + token guard
+
+
+### Phase 8
+
+- I need to have similar page as of phase7 for processing csv
+- need to csv file to db 
+- and one column should be for adding the Exchange , ie, 'bse' or 'nse'
+- while entering make sure to skip the duplicate entry
+
+
+### Phase 9
+- Process all remaining CSV files (we have 522 total files)
+- Add data analysis and visualization features
+- Create frontend components to display the data
+- Add data export functionality

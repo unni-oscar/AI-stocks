@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { isAuthenticated } from '@/utils/auth'
 
 const Header: React.FC = () => {
   return (
@@ -24,12 +25,26 @@ const Header: React.FC = () => {
             >
               Home
             </Link>
-            <Link 
-              to="/dashboard" 
-              className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Dashboard
-            </Link>
+            {isAuthenticated() && <>
+              <Link 
+                to="/dashboard" 
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Dashboard
+              </Link>
+              <Link 
+                to="/bhavcopy" 
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                NSE Data Fetcher
+              </Link>
+              <Link 
+                to="/process" 
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                CSV Processor
+              </Link>
+            </>}
           </nav>
         </div>
       </div>

@@ -1,0 +1,1 @@
+<?php echo "PHP Version: " . phpversion() . "\n"; echo "Loaded Extensions:\n"; foreach (get_loaded_extensions() as $ext) { if (stripos($ext, "mysql") !== false) { echo "- $ext\n"; } } echo "\nPDO Drivers:\n"; foreach (PDO::getAvailableDrivers() as $driver) { echo "- $driver\n"; } ?>

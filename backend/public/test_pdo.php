@@ -1,0 +1,1 @@
+<?php try { $pdo = new PDO("mysql:host=mysql;dbname=ai_stocks;charset=utf8mb4", "root", "password", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]); echo "Direct PDO connection: SUCCESS"; } catch (Exception $e) { echo "Direct PDO Error: " . $e->getMessage(); } ?>

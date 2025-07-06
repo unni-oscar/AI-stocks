@@ -12,13 +12,25 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     nginx \
-    supervisor
+    supervisor \
+    default-mysql-client \
+    libmariadb-dev-compat \
+    libmariadb-dev \
+    pkg-config
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+# Install PHP extensions with explicit MySQL support
+RUN docker-php-ext-configure pdo_mysql --with-pdo-mysql=mysqlnd \
+    && docker-php-ext-install -j$(nproc) pdo_mysql mbstring exif pcntl bcmath gd zip
+
+# Create custom PHP configuration for MySQL
+RUN echo "extension=pdo_mysql" > /usr/local/etc/php/conf.d/20-pdo_mysql.ini \
+    && echo "extension=mysqlnd" > /usr/local/etc/php/conf.d/21-mysqlnd.ini
+
+# Verify MySQL extensions are installed
+RUN php -m | grep -i mysql
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

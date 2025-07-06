@@ -34,6 +34,20 @@ services:
     networks:
       - ai-stocks-network
 
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    ports:
+      - "3037:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=password
+    depends_on:
+      - mysql
+    networks:
+      - ai-stocks-network
+
 volumes:
   mysql_data:
 

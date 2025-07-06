@@ -1,0 +1,550 @@
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { removeToken, handleUnauthorized } from '@/utils/auth'
+
+interface ProcessedDates {
+  [year: string]: {
+    [month: string]: number[]
+  }
+}
+
+interface ProcessStatus {
+  year: number
+  month: number
+  day?: number
+  status: 'idle' | 'processing' | 'success' | 'error'
+  progress?: number
+  message?: string
+}
+
+interface DatabaseStats {
+  total_records: number
+  unique_symbols: number
+  date_range: {
+    start_date: string
+    end_date: string
+  }
+  last_updated: string
+}
+
+const CsvProcessorPage: React.FC = () => {
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+  const [processedDates, setProcessedDates] = useState<ProcessedDates>({})
+  const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null)
+  const navigate = useNavigate()
+
+  // Generate years from current year to 20 years ago
+  const years = Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - i)
+
+  // Get processed dates for selected year
+  useEffect(() => {
+    const fetchProcessedDates = async () => {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`/api/bhavcopy/processed-dates?year=${selectedYear}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        })
+        
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        
+        if (response.ok) {
+          const data = await response.json()
+          setProcessedDates(data)
+        } else {
+          console.error('Failed to fetch processed dates')
+        }
+      } catch (error) {
+        console.error('Error fetching processed dates:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProcessedDates()
+  }, [selectedYear])
+
+  // Fetch database stats
+  useEffect(() => {
+    const fetchDatabaseStats = async () => {
+      try {
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch('/api/bhavcopy/database-stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        })
+        
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        
+        if (response.ok) {
+          const data = await response.json()
+          setDatabaseStats(data.data)
+        }
+      } catch (error) {
+        console.error('Error fetching database stats:', error)
+      }
+    }
+
+    fetchDatabaseStats()
+  }, [])
+
+  const handleProcessDay = async (year: number, month: number, day: number) => {
+    try {
+      setProcessStatus({ year, month, day, status: 'processing', progress: 0 })
+      
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch('/api/bhavcopy/process', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ year, month, day })
+      })
+
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
+
+      if (response.ok) {
+        const responseData = await response.json()
+        const { data } = responseData
+        
+        if (data.exit_code === 0) {
+          setProcessStatus({ 
+            year, 
+            month, 
+            day,
+            status: 'success', 
+            progress: 100,
+            message: `Day ${day} processed successfully`
+          })
+          
+          // Refresh processed dates and database stats
+          await refreshData()
+        } else {
+          setProcessStatus({ 
+            year, 
+            month, 
+            day,
+            status: 'error', 
+            message: `Processing failed: ${data.output}`
+          })
+        }
+      } else {
+        const errorData = await response.json()
+        setProcessStatus({ 
+          year, 
+          month, 
+          day,
+          status: 'error', 
+          message: errorData.message || 'Failed to process data' 
+        })
+      }
+    } catch (error) {
+      setProcessStatus({ 
+        year, 
+        month, 
+        day,
+        status: 'error', 
+        message: 'Network error occurred' 
+      })
+    }
+  }
+
+  const handleProcessMonth = async (year: number, month: number) => {
+    try {
+      setProcessStatus({ year, month, status: 'processing', progress: 0 })
+      
+      const days = getMonthDays(year, month)
+      const daysToProcess = days.filter(day => !isDateProcessed(year, month, day))
+      
+      if (daysToProcess.length === 0) {
+        setProcessStatus({ 
+          year, 
+          month, 
+          status: 'success', 
+          progress: 100,
+          message: 'All days already processed'
+        })
+        return
+      }
+
+      const token = localStorage.getItem('auth_token')
+      
+      for (let i = 0; i < daysToProcess.length; i++) {
+        const day = daysToProcess[i]
+        const progress = Math.round(((i + 1) / daysToProcess.length) * 100)
+        
+        setProcessStatus({ 
+          year, 
+          month, 
+          day,
+          status: 'processing', 
+          progress,
+          message: `Processing day ${day} (${i + 1}/${daysToProcess.length})`
+        })
+
+        const response = await fetch('/api/bhavcopy/process', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ year, month, day })
+        })
+
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
+
+        if (response.ok) {
+          const responseData = await response.json()
+          const { data } = responseData
+          
+          if (data.exit_code === 0) {
+            // Refresh processed dates after each successful day
+            await refreshProcessedDates()
+          } else {
+            setProcessStatus({ 
+              year, 
+              month, 
+              day,
+              status: 'error', 
+              message: `Failed to process day ${day}: ${data.output}`
+            })
+            return
+          }
+        } else {
+          const errorData = await response.json()
+          setProcessStatus({ 
+            year, 
+            month, 
+            day,
+            status: 'error', 
+            message: `Failed to process day ${day}: ${errorData.message || 'Unknown error'}`
+          })
+          return
+        }
+      }
+
+      // All days processed successfully
+      setProcessStatus({ 
+        year, 
+        month, 
+        status: 'success', 
+        progress: 100,
+        message: `All ${daysToProcess.length} days processed successfully`
+      })
+      
+      // Refresh database stats
+      await refreshDatabaseStats()
+      
+    } catch (error) {
+      setProcessStatus({ 
+        year, 
+        month, 
+        status: 'error', 
+        message: 'Network error occurred' 
+      })
+    }
+  }
+
+  const refreshProcessedDates = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`/api/bhavcopy/processed-dates?year=${selectedYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
+      
+      if (response.ok) {
+        const data = await response.json()
+        setProcessedDates(data)
+      }
+    } catch (error) {
+      console.error('Error refreshing processed dates:', error)
+    }
+  }
+
+  const refreshDatabaseStats = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch('/api/bhavcopy/database-stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
+      
+      if (response.ok) {
+        const data = await response.json()
+        setDatabaseStats(data.data)
+      }
+    } catch (error) {
+      console.error('Error refreshing database stats:', error)
+    }
+  }
+
+  const refreshData = async () => {
+    await Promise.all([refreshProcessedDates(), refreshDatabaseStats()])
+  }
+
+  const isDateProcessed = (year: number, month: number, day: number): boolean => {
+    const yearStr = year.toString()
+    const monthStr = month.toString()
+    return processedDates[yearStr]?.[monthStr]?.includes(day) || false
+  }
+
+  const getMonthDays = (year: number, month: number): number[] => {
+    const daysInMonth = new Date(year, month, 0).getDate()
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  }
+
+  const getMonthName = (month: number): string => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    return months[month - 1]
+  }
+
+  const getStatusForMonth = (year: number, month: number): ProcessStatus | null => {
+    if (processStatus && processStatus.year === year && processStatus.month === month && !processStatus.day) {
+      return processStatus
+    }
+    return null
+  }
+
+  const getStatusForDay = (year: number, month: number, day: number): ProcessStatus | null => {
+    if (processStatus && processStatus.year === year && processStatus.month === month && processStatus.day === day) {
+      return processStatus
+    }
+    return null
+  }
+
+  const getProcessedDaysCount = (year: number, month: number): number => {
+    const days = getMonthDays(year, month)
+    return days.filter(day => isDateProcessed(year, month, day)).length
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">CSV Data Processor</h1>
+          <p className="text-gray-600">
+            Process downloaded CSV files into the database for analysis
+          </p>
+        </div>
+        <button
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          onClick={() => {
+            removeToken()
+            navigate('/login')
+          }}
+        >
+          Logout
+        </button>
+      </div>
+
+      {/* Database Stats */}
+      {databaseStats && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+          <h2 className="text-xl font-semibold text-blue-900 mb-4">Database Statistics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-blue-600">{databaseStats.total_records.toLocaleString()}</div>
+              <div className="text-sm text-gray-600">Total Records</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-2xl font-bold text-green-600">{databaseStats.unique_symbols.toLocaleString()}</div>
+              <div className="text-sm text-gray-600">Unique Symbols</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-lg font-semibold text-purple-600">{databaseStats.date_range.start_date}</div>
+              <div className="text-sm text-gray-600">Start Date</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <div className="text-lg font-semibold text-purple-600">{databaseStats.date_range.end_date}</div>
+              <div className="text-sm text-gray-600">End Date</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Year Selection */}
+      <div className="mb-8">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select Year
+        </label>
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
+          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {years.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Debug Test Button */}
+      <div className="mb-4">
+        <button
+          onClick={() => console.log('Test button clicked!')}
+          className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+        >
+          Test Click (Check Console)
+        </button>
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading processed dates...</span>
+        </div>
+      )}
+
+      {/* Month Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
+          const monthStatus = getStatusForMonth(selectedYear, month)
+          const days = getMonthDays(selectedYear, month)
+          const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
+          const hasData = processedDays.length > 0
+          
+          return (
+            <div key={month} className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {getMonthName(month)}
+                </h3>
+                <div className="text-sm text-gray-500">
+                  {processedDays.length}/{days.length} days
+                </div>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-1 mb-4 relative z-10">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                  <div key={`csv-header-${month}-${selectedYear}-${index}-${day}-${Date.now()}`} className="text-xs text-gray-500 text-center py-1">
+                    {day}
+                  </div>
+                ))}
+                {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
+                  <div key={`csv-empty-${month}-${selectedYear}-${i}-${Date.now()}`} className="py-1"></div>
+                ))}
+                {days.map(day => {
+                  const dayStatus = getStatusForDay(selectedYear, month, day)
+                  const isProcessed = isDateProcessed(selectedYear, month, day)
+                  const isProcessing = dayStatus?.status === 'processing'
+                  const isSuccess = dayStatus?.status === 'success'
+                  const isError = dayStatus?.status === 'error'
+                  
+                  return (
+                    <button
+                      key={`csv-day-${month}-${selectedYear}-${day}-${Date.now()}`}
+                      onClick={() => {
+                        console.log(`Processing day ${day} for ${month}/${selectedYear}`)
+                        handleProcessDay(selectedYear, month, day)
+                      }}
+                      disabled={isProcessing}
+                      className={`text-xs text-center py-1 px-1 rounded transition-all duration-200 cursor-pointer min-w-[20px] min-h-[20px] flex items-center justify-center relative z-20 pointer-events-auto ${
+                        isProcessing
+                          ? 'bg-yellow-100 text-yellow-800 cursor-not-allowed'
+                          : isSuccess
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                          : isError
+                          ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer'
+                          : isProcessed
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                          : 'text-gray-700 hover:bg-blue-100 hover:text-blue-800 cursor-pointer'
+                      }`}
+                      title={isProcessing ? 'Processing...' : isProcessed ? 'Already processed' : `Process day ${day}`}
+                    >
+                      {isProcessing ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
+                      ) : (
+                        day
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Process Month Button */}
+              <button
+                onClick={() => handleProcessMonth(selectedYear, month)}
+                disabled={monthStatus?.status === 'processing'}
+                className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  monthStatus?.status === 'processing'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : monthStatus?.status === 'success'
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : monthStatus?.status === 'error'
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {monthStatus?.status === 'processing' ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {monthStatus.progress ? `${monthStatus.progress}%` : 'Processing...'}
+                  </div>
+                ) : monthStatus?.status === 'success' ? (
+                  '✓ Month Processed'
+                ) : monthStatus?.status === 'error' ? (
+                  '✗ Error'
+                ) : (
+                  'Process Month'
+                )}
+              </button>
+
+              {/* Status Message */}
+              {monthStatus?.message && (
+                <div className={`mt-2 text-xs ${
+                  monthStatus.status === 'error' ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {monthStatus.message}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default CsvProcessorPage 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { removeToken } from '@/utils/auth'
+import { removeToken, handleUnauthorized } from '@/utils/auth'
 
 interface ProcessedDates {
   [year: string]: {
@@ -21,6 +21,7 @@ const BhavcopyFetcherPage: React.FC = () => {
   const [processedDates, setProcessedDates] = useState<ProcessedDates>({})
   const [fetchStatus, setFetchStatus] = useState<FetchStatus | null>(null)
   const [loading, setLoading] = useState(false)
+  const [processingDay, setProcessingDay] = useState<{year: number, month: number, day: number} | null>(null)
   const navigate = useNavigate()
 
   // Generate years from current year to 20 years ago
@@ -32,12 +33,17 @@ const BhavcopyFetcherPage: React.FC = () => {
       try {
         setLoading(true)
         const token = localStorage.getItem('auth_token')
-        const response = await fetch(`http://localhost:3035/api/bhavcopy/processed-dates?year=${selectedYear}`, {
+        const response = await fetch(`/api/bhavcopy/processed-dates?year=${selectedYear}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
           }
         })
+        
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
         
         if (response.ok) {
           const data = await response.json()
@@ -60,7 +66,7 @@ const BhavcopyFetcherPage: React.FC = () => {
       setFetchStatus({ year, month, status: 'fetching', progress: 0 })
       
       const token = localStorage.getItem('auth_token')
-      const response = await fetch('http://localhost:3035/api/bhavcopy/fetch', {
+      const response = await fetch('/api/bhavcopy/fetch', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -69,6 +75,11 @@ const BhavcopyFetcherPage: React.FC = () => {
         },
         body: JSON.stringify({ year, month })
       })
+
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
 
       if (response.ok) {
         const responseData = await response.json()
@@ -84,12 +95,27 @@ const BhavcopyFetcherPage: React.FC = () => {
             message: `Downloaded ${data.success_count} files successfully`
           })
         } else if (data.error_count > 0) {
-          setFetchStatus({ 
-            year, 
-            month, 
-            status: 'error', 
-            message: `Failed to download ${data.error_count} files. ${data.errors.slice(0, 2).join(', ')}`
-          })
+          // Check if errors are mostly non-trading days (expected for weekends/holidays)
+          const isMostlyNonTradingDays = data.errors.every((error: string) => 
+            error.includes('HTTP 404') || error.includes('non-trading day')
+          )
+          
+          if (isMostlyNonTradingDays && data.error_count > 0) {
+            setFetchStatus({ 
+              year, 
+              month, 
+              status: 'success', 
+              progress: 100,
+              message: `Completed: ${data.success_count} files downloaded, ${data.error_count} non-trading days (weekends/holidays)`
+            })
+          } else {
+            setFetchStatus({ 
+              year, 
+              month, 
+              status: 'error', 
+              message: `Failed to download ${data.error_count} files. ${data.errors.slice(0, 2).join(', ')}`
+            })
+          }
         } else {
           // No files downloaded, no errors - probably all files already exist
           setFetchStatus({ 
@@ -102,12 +128,16 @@ const BhavcopyFetcherPage: React.FC = () => {
         }
         
         // Refresh processed dates
-        const datesResponse = await fetch(`http://localhost:3035/api/bhavcopy/processed-dates?year=${year}`, {
+        const datesResponse = await fetch(`/api/bhavcopy/processed-dates?year=${year}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
           }
         })
+        if (datesResponse.status === 401) {
+          handleUnauthorized()
+          return
+        }
         if (datesResponse.ok) {
           const data = await datesResponse.json()
           setProcessedDates(data)
@@ -155,6 +185,68 @@ const BhavcopyFetcherPage: React.FC = () => {
       return fetchStatus
     }
     return null
+  }
+
+  // Add this function to handle CSV fetch/store and process (no browser download)
+  const handleFetchDayCsv = async (year: number, month: number, day: number) => {
+    setProcessingDay({ year, month, day })
+    const token = localStorage.getItem('auth_token')
+    const fetchUrl = `/api/bhavcopy/fetch-day`
+    const processUrl = `/api/bhavcopy/process`
+    try {
+      // Step 1: Fetch/store the CSV file
+      const fetchResponse = await fetch(fetchUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ year, month, day })
+      })
+      if (fetchResponse.status === 401) {
+        handleUnauthorized()
+        setProcessingDay(null)
+        return
+      }
+      const fetchData = await fetchResponse.json()
+      if (!fetchResponse.ok || fetchData.status !== 'success') {
+        setProcessingDay(null)
+        return
+      }
+      // Step 2: Process the CSV into the database
+      const processResponse = await fetch(processUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ year, month, day })
+      })
+      if (processResponse.status === 401) {
+        handleUnauthorized()
+        setProcessingDay(null)
+        return
+      }
+      const processData = await processResponse.json()
+      if (processResponse.ok && processData.status === 'success') {
+        // Refresh processed dates
+        const datesResponse = await fetch(`/api/bhavcopy/processed-dates?year=${year}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        })
+        if (datesResponse.ok) {
+          const datesData = await datesResponse.json()
+          setProcessedDates(datesData)
+        }
+      }
+      setProcessingDay(null)
+    } catch (err) {
+      setProcessingDay(null)
+    }
   }
 
   return (
@@ -221,26 +313,47 @@ const BhavcopyFetcherPage: React.FC = () => {
 
               {/* Calendar Grid */}
               <div className="grid grid-cols-7 gap-1 mb-4">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-                  <div key={day} className="text-xs text-gray-500 text-center py-1">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                  <div key={`header-${month}-${selectedYear}-${index}-${day}`} className="text-xs text-gray-500 text-center py-1">
                     {day}
                   </div>
                 ))}
                 {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
-                  <div key={`empty-${i}`} className="py-1"></div>
+                  <div key={`empty-${month}-${selectedYear}-${i}`} className="py-1"></div>
                 ))}
-                {days.map(day => (
+                {days.map(day => {
+                  const isProcessed = isDateProcessed(selectedYear, month, day)
+                  const today = new Date()
+                  const isFuture =
+                    selectedYear > today.getFullYear() ||
+                    (selectedYear === today.getFullYear() && month > today.getMonth() + 1) ||
+                    (selectedYear === today.getFullYear() && month === today.getMonth() + 1 && day > today.getDate())
+                  return (
                   <div
-                    key={day}
-                    className={`text-xs text-center py-1 rounded ${
-                      isDateProcessed(selectedYear, month, day)
-                        ? 'bg-green-100 text-green-800'
-                        : 'text-gray-700'
-                    }`}
-                  >
-                    {day}
+                    key={`day-${month}-${selectedYear}-${day}`}
+                      className={`text-xs text-center py-1 rounded cursor-pointer transition-all duration-200 ${
+                        isFuture
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : isProcessed
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                      }`}
+                      onClick={() => {
+                        if (!isFuture) {
+                          handleFetchDayCsv(selectedYear, month, day)
+                        }
+                      }}
+                      title={isFuture ? 'Future date' : isProcessed ? 'Download CSV' : 'Try to download CSV'}
+                      style={{ pointerEvents: isFuture ? 'none' : 'auto' }}
+                    >
+                      {processingDay && processingDay.year === selectedYear && processingDay.month === month && processingDay.day === day ? (
+                        <span className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>
+                      ) : (
+                        day
+                      )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Fetch Button */}

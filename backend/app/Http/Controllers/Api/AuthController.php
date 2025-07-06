@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -54,6 +55,14 @@ class AuthController extends Controller
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
+
+        // Try to ensure database connection is available
+        try {
+            DB::connection()->getPdo();
+        } catch (\Exception $e) {
+            // If connection fails, try to reconnect
+            DB::connection()->reconnect();
+        }
 
         if (!Auth::attempt($request->only('email', 'password'))) {
             throw ValidationException::withMessages([
