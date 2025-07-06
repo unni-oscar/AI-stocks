@@ -1,21 +1,28 @@
 import React from 'react'
 import Header from './Header'
 import Sidebar from './Sidebar'
+import { isAuthenticated } from '@/utils/auth'
 
 interface LayoutProps {
   children: React.ReactNode
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const authenticated = isAuthenticated()
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex grow flex-col">
+      {/* Header */}
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6">
+      
+      {/* Content */}
+      <main className="grow" id="content" role="content">
+        {/* Container */}
+        <div className="kt-container-fixed" id="contentContainer">
           {children}
+        </div>
+        {/* End of Container */}
         </main>
-      </div>
     </div>
   )
 }

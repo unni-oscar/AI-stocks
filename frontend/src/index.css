@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base styles for full height layout */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -27,5 +41,170 @@
   
   .input-field {
     @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+
+  /* Container classes */
+  .kt-container-fixed {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Card classes */
+  .kt-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+  }
+
+  .kt-card-header {
+    @apply flex items-center justify-between p-5 lg:p-7.5 border-b border-gray-200;
+  }
+
+  .kt-card-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  .kt-card-content {
+    @apply p-5 lg:p-7.5;
+  }
+
+  .kt-card-footer {
+    @apply flex items-center p-5 lg:p-7.5 border-t border-gray-200;
+  }
+
+  .kt-card-group {
+    @apply flex items-center justify-between py-4 gap-2.5;
+  }
+
+  /* Button classes */
+  .kt-btn {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-colors;
+  }
+
+  .kt-btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .kt-btn-icon {
+    @apply p-2;
+  }
+
+  .kt-btn-ghost {
+    @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100;
+  }
+
+  /* Menu classes */
+  .kt-menu {
+    @apply relative;
+  }
+
+  .kt-menu-item {
+    @apply relative;
+  }
+
+  .kt-menu-link {
+    @apply flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors;
+  }
+
+  .kt-menu-icon {
+    @apply flex items-center justify-center w-5 h-5;
+  }
+
+  .kt-menu-title {
+    @apply flex-1;
+  }
+
+  .kt-menu-dropdown {
+    @apply absolute z-50 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 py-1;
+  }
+
+  .kt-menu-toggle {
+    @apply flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors;
+  }
+
+  /* Link classes */
+  .kt-link {
+    @apply inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors;
+  }
+
+  /* Toggle group */
+  .kt-toggle-group {
+    @apply inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1;
+  }
+
+  .kt-toggle-group .kt-btn {
+    @apply bg-transparent border-0 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors;
+  }
+
+  .kt-toggle-group .kt-btn input:checked + .kt-btn {
+    @apply bg-white text-gray-900 shadow-sm;
+  }
+
+  /* Radio button classes */
+  .kt-radio {
+    @apply w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500;
+  }
+
+  /* Icon classes - Simple replacements for KeenIcons */
+  .ki-filled {
+    @apply inline-block;
+  }
+
+  .ki-badge::before {
+    content: "🏷️";
+  }
+
+  .ki-security-user::before {
+    content: "👤";
+  }
+
+  .ki-cheque::before {
+    content: "📄";
+  }
+
+  .ki-users::before {
+    content: "👥";
+  }
+
+  .ki-right::before {
+    content: "→";
+  }
+
+  .ki-dots-vertical::before {
+    content: "⋯";
+  }
+
+  .ki-setting-3::before {
+    content: "⚙️";
+  }
+
+  .ki-some-files::before {
+    content: "📁";
+  }
+
+  /* Text utilities */
+  .text-mono {
+    @apply font-mono;
+  }
+
+  .text-secondary-foreground {
+    @apply text-gray-600;
+  }
+
+  .text-muted-foreground {
+    @apply text-gray-500;
+  }
+
+  /* Background utilities */
+  .bg-background {
+    @apply bg-white;
+  }
+
+  /* Header height variable */
+  :root {
+    --header-height: 95px;
+  }
+
+  @media (max-width: 1024px) {
+    :root {
+      --header-height: 70px;
+    }
   }
 } 

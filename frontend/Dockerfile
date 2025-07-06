@@ -13,8 +13,8 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Expose port 3033
-EXPOSE 3033
+# Expose port 3039
+EXPOSE 3039
 
 # Start the development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3039"] 

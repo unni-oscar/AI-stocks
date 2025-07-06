@@ -14,6 +14,7 @@ import WatchlistPage from '@/pages/WatchlistPage'
 import DeliverySpikesPage from '@/pages/DeliverySpikesPage'
 import StockMasterPage from '@/pages/StockMasterPage'
 import { isAuthenticated } from '@/utils/auth'
+import './index.css'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const location = useLocation()
@@ -29,7 +30,7 @@ function App() {
   console.log('Token in localStorage:', localStorage.getItem('auth_token'))
   
   return (
-    <>
+    <div className="antialiased flex h-full text-base text-foreground bg-background [--header-height-default:95px] data-kt-[sticky-header=on]:[--header-height:60px] [--header-height:var(--header-height-default)] [--header-height-mobile:70px]">
       <Toaster position="top-right" />
     <Layout>
       <Routes>
@@ -57,7 +58,7 @@ function App() {
         </> : <Route path="*" element={<Navigate to="/" replace />} />}
       </Routes>
     </Layout>
-    </>
+    </div>
   )
 }
 
