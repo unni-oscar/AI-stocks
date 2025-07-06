@@ -1,6 +1,7 @@
 import React from 'react'
 import Header from './Header'
 import Sidebar from './Sidebar'
+import Footer from './Footer'
 import { isAuthenticated } from '@/utils/auth'
 import { useLocation } from 'react-router-dom'
 
@@ -14,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const showSidebar = authenticated && location.pathname !== '/'
 
   return (
-    <div className="flex grow flex-col">
+    <div className="flex grow flex-col bg-white">
       {/* Header */}
       <Header />
       {/* Content with Sidebar for authenticated users except on Home page */}
@@ -26,6 +27,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </main>
         </div>
       </div>
+      {/* Footer */}
+      <Footer />
     </div>
   )
 }
