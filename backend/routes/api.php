@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bhavcopy/eq-stocks', [BhavcopyController::class, 'getEqStocks']);
     Route::post('/bhavcopy/fetch', [BhavcopyController::class, 'fetchMonth']);
     Route::get('/bhavcopy/processed-dates', [BhavcopyController::class, 'getProcessedDates']);
+    Route::get('/bhavcopy/database-dates', [BhavcopyController::class, 'getDatabaseDates']);
     Route::get('/bhavcopy/stats', [BhavcopyController::class, 'getStats']);
     Route::post('/bhavcopy/process', [BhavcopyController::class, 'processData']);
     Route::get('/bhavcopy/database-stats', [BhavcopyController::class, 'getDatabaseStats']);

@@ -417,6 +417,46 @@ class BhavcopyController extends Controller
     }
 
     /**
+     * Get dates that have records in the database for a specific year
+     */
+    public function getDatabaseDates(Request $request)
+    {
+        $year = $request->query('year', date('Y'));
+        $databaseDates = [];
+
+        try {
+            // Get all dates in the database for the specified year
+            $dates = \App\Models\BhavcopyData::selectRaw('DATE(trade_date) as date')
+                ->whereYear('trade_date', $year)
+                ->distinct()
+                ->pluck('date')
+                ->toArray();
+
+            // Group dates by month
+            foreach ($dates as $date) {
+                $dateObj = \Carbon\Carbon::parse($date);
+                $month = $dateObj->month;
+                $day = $dateObj->day;
+                
+                if (!isset($databaseDates[$year][$month])) {
+                    $databaseDates[$year][$month] = [];
+                }
+                
+                $databaseDates[$year][$month][] = $day;
+            }
+
+            return response()->json($databaseDates);
+        } catch (\Exception $e) {
+            Log::error('Error getting database dates: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to get database dates',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get all EQ stocks with latest trading data
      */
     public function getEqStocks(Request $request)

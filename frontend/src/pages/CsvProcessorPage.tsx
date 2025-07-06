@@ -8,6 +8,12 @@ interface ProcessedDates {
   }
 }
 
+interface DatabaseDates {
+  [year: string]: {
+    [month: string]: number[]
+  }
+}
+
 interface ProcessStatus {
   year: number
   month: number
@@ -30,6 +36,7 @@ interface DatabaseStats {
 const CsvProcessorPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [processedDates, setProcessedDates] = useState<ProcessedDates>({})
+  const [databaseDates, setDatabaseDates] = useState<DatabaseDates>({})
   const [processStatus, setProcessStatus] = useState<ProcessStatus | null>(null)
   const [loading, setLoading] = useState(false)
   const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null)
@@ -70,6 +77,37 @@ const CsvProcessorPage: React.FC = () => {
     }
 
     fetchProcessedDates()
+  }, [selectedYear])
+
+  // Get database dates for selected year
+  useEffect(() => {
+    const fetchDatabaseDates = async () => {
+      try {
+        const token = localStorage.getItem('auth_token')
+        const response = await fetch(`/api/bhavcopy/database-dates?year=${selectedYear}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        })
+        
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        
+        if (response.ok) {
+          const data = await response.json()
+          setDatabaseDates(data)
+        } else {
+          console.error('Failed to fetch database dates')
+        }
+      } catch (error) {
+        console.error('Error fetching database dates:', error)
+      }
+    }
+
+    fetchDatabaseDates()
   }, [selectedYear])
 
   // Fetch database stats
@@ -291,6 +329,30 @@ const CsvProcessorPage: React.FC = () => {
     }
   }
 
+  const refreshDatabaseDates = async () => {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`/api/bhavcopy/database-dates?year=${selectedYear}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      })
+      
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
+      
+      if (response.ok) {
+        const data = await response.json()
+        setDatabaseDates(data)
+      }
+    } catch (error) {
+      console.error('Error refreshing database dates:', error)
+    }
+  }
+
   const refreshDatabaseStats = async () => {
     try {
       const token = localStorage.getItem('auth_token')
@@ -316,13 +378,19 @@ const CsvProcessorPage: React.FC = () => {
   }
 
   const refreshData = async () => {
-    await Promise.all([refreshProcessedDates(), refreshDatabaseStats()])
+    await Promise.all([refreshProcessedDates(), refreshDatabaseDates(), refreshDatabaseStats()])
   }
 
   const isDateProcessed = (year: number, month: number, day: number): boolean => {
     const yearStr = year.toString()
     const monthStr = month.toString()
     return processedDates[yearStr]?.[monthStr]?.includes(day) || false
+  }
+
+  const isDateInDatabase = (year: number, month: number, day: number): boolean => {
+    const yearStr = year.toString()
+    const monthStr = month.toString()
+    return databaseDates[yearStr]?.[monthStr]?.includes(day) || false
   }
 
   const getMonthDays = (year: number, month: number): number[] => {
@@ -455,6 +523,7 @@ const CsvProcessorPage: React.FC = () => {
                   {days.map(day => {
                     const dayStatus = getStatusForDay(selectedYear, month, day)
                     const isProcessed = isDateProcessed(selectedYear, month, day)
+                    const hasDatabaseRecords = isDateInDatabase(selectedYear, month, day)
                     const isProcessing = dayStatus?.status === 'processing'
                     const isSuccess = dayStatus?.status === 'success'
                     const isError = dayStatus?.status === 'error'
@@ -474,11 +543,16 @@ const CsvProcessorPage: React.FC = () => {
                             ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
                             : isError
                             ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer'
-                            : isProcessed
+                            : hasDatabaseRecords
                             ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
                             : 'text-gray-700 hover:bg-blue-100 hover:text-blue-800 cursor-pointer'
                         }`}
-                        title={isProcessing ? 'Processing...' : isProcessed ? 'Already processed' : `Process day ${day}`}
+                        title={
+                          isProcessing ? 'Processing...' : 
+                          hasDatabaseRecords ? 'Has records in database' : 
+                          isProcessed ? 'File processed but no database records' : 
+                          `Process day ${day}`
+                        }
                       >
                         {isProcessing ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
