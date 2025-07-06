@@ -210,7 +210,7 @@ const CsvProcessorPage: React.FC = () => {
       setProcessStatus({ year, month, status: 'processing', progress: 0 })
       
       const days = getMonthDays(year, month)
-      const daysToProcess = days.filter(day => !isDateProcessed(year, month, day))
+      const daysToProcess = days.filter(day => hasCsvFile(year, month, day) && !isDateInDatabase(year, month, day))
       
       if (daysToProcess.length === 0) {
         setProcessStatus({ 
@@ -218,7 +218,7 @@ const CsvProcessorPage: React.FC = () => {
           month, 
           status: 'success', 
           progress: 100,
-          message: 'All days already processed'
+          message: 'All available CSV files already have database records'
         })
         return
       }
@@ -258,8 +258,8 @@ const CsvProcessorPage: React.FC = () => {
           const { data } = responseData
           
           if (data.exit_code === 0) {
-            // Refresh processed dates after each successful day
-            await refreshProcessedDates()
+            // Refresh database dates after each successful day
+            await refreshDatabaseDates()
           } else {
             setProcessStatus({ 
               year, 
@@ -292,8 +292,8 @@ const CsvProcessorPage: React.FC = () => {
         message: `All ${daysToProcess.length} days processed successfully`
       })
       
-      // Refresh database stats
-      await refreshDatabaseStats()
+      // Refresh all data
+      await refreshData()
       
     } catch (error) {
       setProcessStatus({ 
@@ -391,6 +391,12 @@ const CsvProcessorPage: React.FC = () => {
     const yearStr = year.toString()
     const monthStr = month.toString()
     return databaseDates[yearStr]?.[monthStr]?.includes(day) || false
+  }
+
+  const hasCsvFile = (year: number, month: number, day: number): boolean => {
+    const yearStr = year.toString()
+    const monthStr = month.toString()
+    return processedDates[yearStr]?.[monthStr]?.includes(day) || false
   }
 
   const getMonthDays = (year: number, month: number): number[] => {

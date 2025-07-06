@@ -40,7 +40,10 @@ class BhavcopyController extends Controller
                 $dateStr = $dayStr . $monthStr . $year;
                 $filename = "sec_bhavdata_full_{$dateStr}.csv";
                 $filePath = "bhavcopy-data/nse/{$year}/{$monthStr}/{$filename}";
-                if (\Storage::disk('private')->exists($filePath)) {
+                $filePath404 = $filePath . '.404';
+                
+                // Only include days that have actual CSV files (not 404 files)
+                if (\Storage::disk('private')->exists($filePath) && !\Storage::disk('private')->exists($filePath404)) {
                     $days[] = $day;
                 }
             }
