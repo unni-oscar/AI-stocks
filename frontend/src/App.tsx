@@ -13,6 +13,7 @@ import StockDetailPage from '@/pages/StockDetailPage'
 import WatchlistPage from '@/pages/WatchlistPage'
 import DeliverySpikesPage from '@/pages/DeliverySpikesPage'
 import StockMasterPage from '@/pages/StockMasterPage'
+import DummyPage from '@/pages/DummyPage'
 import { isAuthenticated } from '@/utils/auth'
 import './index.css'
 
@@ -55,6 +56,7 @@ function App() {
             <Route path="/stock-master" element={<RequireAuth><StockMasterPage /></RequireAuth>} />
           <Route path="/watchlist" element={<RequireAuth><WatchlistPage /></RequireAuth>} />
           <Route path="/delivery-spikes" element={<RequireAuth><DeliverySpikesPage /></RequireAuth>} />
+          <Route path="/dummy" element={<DummyPage />} />
         </> : <Route path="*" element={<Navigate to="/" replace />} />}
       </Routes>
     </Layout>
