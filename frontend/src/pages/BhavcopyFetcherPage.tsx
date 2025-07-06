@@ -250,39 +250,28 @@ const BhavcopyFetcherPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">NSE Bhavcopy Fetcher</h1>
-          <p className="text-gray-600">
-            Download and manage NSE market data by year and month
-          </p>
-        </div>
-        <button
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          onClick={() => {
-            removeToken()
-            navigate('/login')
-          }}
-        >
-          Logout
-        </button>
+    <div>
+      <div className="mt-4 mb-6">
+        <h1 className="text-3xl text-gray-900">NSE Bhavcopy Fetcher</h1>
+        <p className="text-gray-500 text-base mt-1">Download and manage NSE market data by year and month</p>
       </div>
 
       {/* Year Selection */}
-      <div className="mb-8">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Year
-        </label>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {years.map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
+      <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">Select Year:</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {years.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1" />
+       
       </div>
 
       {/* Loading State */}
@@ -294,105 +283,110 @@ const BhavcopyFetcherPage: React.FC = () => {
       )}
 
       {/* Month Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
-          const monthStatus = getStatusForMonth(selectedYear, month)
-          const days = getMonthDays(selectedYear, month)
-          const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
-          
-          return (
-            <div key={month} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {getMonthName(month)}
-                </h3>
-                <div className="text-sm text-gray-500">
-                  {processedDays.length}/{days.length} days
-                </div>
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1 mb-4">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                  <div key={`header-${month}-${selectedYear}-${index}-${day}`} className="text-xs text-gray-500 text-center py-1">
-                    {day}
-                  </div>
-                ))}
-                {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
-                  <div key={`empty-${month}-${selectedYear}-${i}`} className="py-1"></div>
-                ))}
-                {days.map(day => {
-                  const isProcessed = isDateProcessed(selectedYear, month, day)
-                  const today = new Date()
-                  const isFuture =
-                    selectedYear > today.getFullYear() ||
-                    (selectedYear === today.getFullYear() && month > today.getMonth() + 1) ||
-                    (selectedYear === today.getFullYear() && month === today.getMonth() + 1 && day > today.getDate())
-                  return (
-                  <div
-                    key={`day-${month}-${selectedYear}-${day}`}
-                      className={`text-xs text-center py-1 rounded cursor-pointer transition-all duration-200 ${
-                        isFuture
+      <div className="overflow-x-auto rounded border">
+        <div className="grid grid-cols-3 gap-6 p-6 bg-white">
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
+            const monthStatus = getStatusForMonth(selectedYear, month)
+            const days = getMonthDays(selectedYear, month)
+            const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
+            
+            return (
+              <div key={month} className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {getMonthName(month)}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-gray-500">
+                      {processedDays.length}/{days.length} days
+                    </div>
+                    <button
+                      onClick={() => handleFetchMonth(selectedYear, month)}
+                      disabled={monthStatus?.status === 'fetching'}
+                      className={`p-2 rounded-full transition-colors ${
+                        monthStatus?.status === 'fetching'
                           ? 'text-gray-400 cursor-not-allowed'
-                          : isProcessed
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                          : monthStatus?.status === 'success'
+                          ? 'text-green-600 hover:text-green-700'
+                          : monthStatus?.status === 'error'
+                          ? 'text-red-600 hover:text-red-700'
+                          : 'text-blue-600 hover:text-blue-700'
                       }`}
-                      onClick={() => {
-                        if (!isFuture) {
-                          handleFetchDayCsv(selectedYear, month, day)
-                        }
-                      }}
-                      title={isFuture ? 'Future date' : isProcessed ? 'Download CSV' : 'Try to download CSV'}
-                      style={{ pointerEvents: isFuture ? 'none' : 'auto' }}
+                      title={
+                        monthStatus?.status === 'fetching' ? 'Fetching...' :
+                        monthStatus?.status === 'success' ? 'Completed' :
+                        monthStatus?.status === 'error' ? 'Error occurred' :
+                        'Fetch month data'
+                      }
                     >
-                      {processingDay && processingDay.year === selectedYear && processingDay.month === month && processingDay.day === day ? (
-                        <span className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>
+                      {monthStatus?.status === 'fetching' ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      ) : monthStatus?.status === 'success' ? (
+                        <span className="text-sm">✅</span>
+                      ) : monthStatus?.status === 'error' ? (
+                        <span className="text-sm">❌</span>
                       ) : (
-                        day
+                        <span className="text-sm">📥</span>
                       )}
+                    </button>
                   </div>
-                  )
-                })}
-              </div>
-
-              {/* Fetch Button */}
-              <button
-                onClick={() => handleFetchMonth(selectedYear, month)}
-                disabled={monthStatus?.status === 'fetching'}
-                className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  monthStatus?.status === 'fetching'
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : monthStatus?.status === 'success'
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : monthStatus?.status === 'error'
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {monthStatus?.status === 'fetching' ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Fetching...
-                  </div>
-                ) : monthStatus?.status === 'success' ? (
-                  '✓ Completed'
-                ) : monthStatus?.status === 'error' ? (
-                  '✗ Error'
-                ) : (
-                  'Fetch Data'
-                )}
-              </button>
-
-              {/* Error Message */}
-              {monthStatus?.status === 'error' && monthStatus.message && (
-                <div className="mt-2 text-xs text-red-600">
-                  {monthStatus.message}
                 </div>
-              )}
-            </div>
-          )
-        })}
+
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 gap-1 mb-4">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                    <div key={`header-${month}-${selectedYear}-${index}-${day}`} className="text-xs text-gray-500 text-center py-1">
+                      {day}
+                    </div>
+                  ))}
+                  {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
+                    <div key={`empty-${month}-${selectedYear}-${i}`} className="py-1"></div>
+                  ))}
+                  {days.map(day => {
+                    const isProcessed = isDateProcessed(selectedYear, month, day)
+                    const today = new Date()
+                    const isFuture =
+                      selectedYear > today.getFullYear() ||
+                      (selectedYear === today.getFullYear() && month > today.getMonth() + 1) ||
+                      (selectedYear === today.getFullYear() && month === today.getMonth() + 1 && day > today.getDate())
+                    return (
+                    <div
+                      key={`day-${month}-${selectedYear}-${day}`}
+                        className={`text-xs text-center py-1 rounded cursor-pointer transition-all duration-200 ${
+                          isFuture
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : isProcessed
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                        }`}
+                        onClick={() => {
+                          if (!isFuture) {
+                            handleFetchDayCsv(selectedYear, month, day)
+                          }
+                        }}
+                        title={isFuture ? 'Future date' : isProcessed ? 'Download CSV' : 'Try to download CSV'}
+                        style={{ pointerEvents: isFuture ? 'none' : 'auto' }}
+                      >
+                        {processingDay && processingDay.year === selectedYear && processingDay.month === month && processingDay.day === day ? (
+                          <span className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>
+                        ) : (
+                          day
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Error Message */}
+                {monthStatus?.status === 'error' && monthStatus.message && (
+                  <div className="mt-2 text-xs text-red-600">
+                    {monthStatus.message}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

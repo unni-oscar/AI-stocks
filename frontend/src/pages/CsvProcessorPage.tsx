@@ -358,74 +358,29 @@ const CsvProcessorPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">CSV Data Processor</h1>
-          <p className="text-gray-600">
-            Process downloaded CSV files into the database for analysis
-          </p>
-        </div>
-        <button
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          onClick={() => {
-            removeToken()
-            navigate('/login')
-          }}
-        >
-          Logout
-        </button>
+    <div>
+      <div className="mt-4 mb-6">
+        <h1 className="text-3xl text-gray-900">CSV Data Processor</h1>
+        <p className="text-gray-500 text-base mt-1">Process downloaded CSV files into the database for analysis</p>
       </div>
 
-      {/* Database Stats */}
-      {databaseStats && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-blue-900 mb-4">Database Statistics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-2xl font-bold text-blue-600">{databaseStats.total_records.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">Total Records</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-2xl font-bold text-green-600">{databaseStats.unique_symbols.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">Unique Symbols</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-lg font-semibold text-purple-600">{databaseStats.date_range.start_date}</div>
-              <div className="text-sm text-gray-600">Start Date</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
-              <div className="text-lg font-semibold text-purple-600">{databaseStats.date_range.end_date}</div>
-              <div className="text-sm text-gray-600">End Date</div>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Year Selection */}
-      <div className="mb-8">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Year
-        </label>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {years.map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Debug Test Button */}
-      <div className="mb-4">
-        <button
-          onClick={() => console.log('Test button clicked!')}
-          className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
-        >
-          Test Click (Check Console)
-        </button>
+      <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">Select Year:</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {years.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1" />
       </div>
 
       {/* Loading State */}
@@ -437,111 +392,116 @@ const CsvProcessorPage: React.FC = () => {
       )}
 
       {/* Month Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
-          const monthStatus = getStatusForMonth(selectedYear, month)
-          const days = getMonthDays(selectedYear, month)
-          const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
-          const hasData = processedDays.length > 0
-          
-          return (
-            <div key={month} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {getMonthName(month)}
-                </h3>
-                <div className="text-sm text-gray-500">
-                  {processedDays.length}/{days.length} days
-                </div>
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1 mb-4 relative z-10">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                  <div key={`csv-header-${month}-${selectedYear}-${index}-${day}-${Date.now()}`} className="text-xs text-gray-500 text-center py-1">
-                    {day}
-                  </div>
-                ))}
-                {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
-                  <div key={`csv-empty-${month}-${selectedYear}-${i}-${Date.now()}`} className="py-1"></div>
-                ))}
-                {days.map(day => {
-                  const dayStatus = getStatusForDay(selectedYear, month, day)
-                  const isProcessed = isDateProcessed(selectedYear, month, day)
-                  const isProcessing = dayStatus?.status === 'processing'
-                  const isSuccess = dayStatus?.status === 'success'
-                  const isError = dayStatus?.status === 'error'
-                  
-                  return (
+      <div className="overflow-x-auto rounded border">
+        <div className="grid grid-cols-3 gap-6 p-6 bg-white">
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
+            const monthStatus = getStatusForMonth(selectedYear, month)
+            const days = getMonthDays(selectedYear, month)
+            const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
+            const hasData = processedDays.length > 0
+            
+            return (
+              <div key={month} className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {getMonthName(month)}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm text-gray-500">
+                      {processedDays.length}/{days.length} days
+                    </div>
                     <button
-                      key={`csv-day-${month}-${selectedYear}-${day}-${Date.now()}`}
-                      onClick={() => {
-                        console.log(`Processing day ${day} for ${month}/${selectedYear}`)
-                        handleProcessDay(selectedYear, month, day)
-                      }}
-                      disabled={isProcessing}
-                      className={`text-xs text-center py-1 px-1 rounded transition-all duration-200 cursor-pointer min-w-[20px] min-h-[20px] flex items-center justify-center relative z-20 pointer-events-auto ${
-                        isProcessing
-                          ? 'bg-yellow-100 text-yellow-800 cursor-not-allowed'
-                          : isSuccess
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
-                          : isError
-                          ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer'
-                          : isProcessed
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
-                          : 'text-gray-700 hover:bg-blue-100 hover:text-blue-800 cursor-pointer'
+                      onClick={() => handleProcessMonth(selectedYear, month)}
+                      disabled={monthStatus?.status === 'processing'}
+                      className={`p-2 rounded-full transition-colors ${
+                        monthStatus?.status === 'processing'
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : monthStatus?.status === 'success'
+                          ? 'text-green-600 hover:text-green-700'
+                          : monthStatus?.status === 'error'
+                          ? 'text-red-600 hover:text-red-700'
+                          : 'text-blue-600 hover:text-blue-700'
                       }`}
-                      title={isProcessing ? 'Processing...' : isProcessed ? 'Already processed' : `Process day ${day}`}
+                      title={
+                        monthStatus?.status === 'processing' ? 'Processing...' :
+                        monthStatus?.status === 'success' ? 'Completed' :
+                        monthStatus?.status === 'error' ? 'Error occurred' :
+                        'Process month data'
+                      }
                     >
-                      {isProcessing ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
+                      {monthStatus?.status === 'processing' ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      ) : monthStatus?.status === 'success' ? (
+                        <span className="text-sm">✅</span>
+                      ) : monthStatus?.status === 'error' ? (
+                        <span className="text-sm">❌</span>
                       ) : (
-                        day
+                        <span className="text-sm">⚙️</span>
                       )}
                     </button>
-                  )
-                })}
-              </div>
-
-              {/* Process Month Button */}
-              <button
-                onClick={() => handleProcessMonth(selectedYear, month)}
-                disabled={monthStatus?.status === 'processing'}
-                className={`w-full py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                  monthStatus?.status === 'processing'
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : monthStatus?.status === 'success'
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : monthStatus?.status === 'error'
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {monthStatus?.status === 'processing' ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {monthStatus.progress ? `${monthStatus.progress}%` : 'Processing...'}
                   </div>
-                ) : monthStatus?.status === 'success' ? (
-                  '✓ Month Processed'
-                ) : monthStatus?.status === 'error' ? (
-                  '✗ Error'
-                ) : (
-                  'Process Month'
-                )}
-              </button>
-
-              {/* Status Message */}
-              {monthStatus?.message && (
-                <div className={`mt-2 text-xs ${
-                  monthStatus.status === 'error' ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  {monthStatus.message}
                 </div>
-              )}
-            </div>
-          )
-        })}
+
+                {/* Calendar Grid */}
+                <div className="grid grid-cols-7 gap-1 mb-4 relative z-10">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                    <div key={`csv-header-${month}-${selectedYear}-${index}-${day}-${Date.now()}`} className="text-xs text-gray-500 text-center py-1">
+                      {day}
+                    </div>
+                  ))}
+                  {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
+                    <div key={`csv-empty-${month}-${selectedYear}-${i}-${Date.now()}`} className="py-1"></div>
+                  ))}
+                  {days.map(day => {
+                    const dayStatus = getStatusForDay(selectedYear, month, day)
+                    const isProcessed = isDateProcessed(selectedYear, month, day)
+                    const isProcessing = dayStatus?.status === 'processing'
+                    const isSuccess = dayStatus?.status === 'success'
+                    const isError = dayStatus?.status === 'error'
+                    
+                    return (
+                      <button
+                        key={`csv-day-${month}-${selectedYear}-${day}-${Date.now()}`}
+                        onClick={() => {
+                          console.log(`Processing day ${day} for ${month}/${selectedYear}`)
+                          handleProcessDay(selectedYear, month, day)
+                        }}
+                        disabled={isProcessing}
+                        className={`text-xs text-center py-1 px-1 rounded transition-all duration-200 cursor-pointer min-w-[20px] min-h-[20px] flex items-center justify-center relative z-20 pointer-events-auto ${
+                          isProcessing
+                            ? 'bg-yellow-100 text-yellow-800 cursor-not-allowed'
+                            : isSuccess
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                            : isError
+                            ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer'
+                            : isProcessed
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                            : 'text-gray-700 hover:bg-blue-100 hover:text-blue-800 cursor-pointer'
+                        }`}
+                        title={isProcessing ? 'Processing...' : isProcessed ? 'Already processed' : `Process day ${day}`}
+                      >
+                        {isProcessing ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
+                        ) : (
+                          day
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Status Message */}
+                {monthStatus?.message && (
+                  <div className={`mt-2 text-xs ${
+                    monthStatus.status === 'error' ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {monthStatus.message}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
