@@ -19,14 +19,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Header />
       {/* Content with Sidebar for authenticated users except on Home page */}
       <div className="flex grow pt-20">
-        {showSidebar && <Sidebar />}
-        <main className="grow" id="content" role="content">
-          {/* Container */}
-          <div className="kt-container-fixed" id="contentContainer">
+        <div className="kt-container-fixed flex w-full">
+          {showSidebar && <Sidebar />}
+          <main className="grow" id="content" role="content">
             {children}
-          </div>
-          {/* End of Container */}
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   )

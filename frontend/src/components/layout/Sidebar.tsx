@@ -4,7 +4,7 @@ import { isAuthenticated, getToken, removeToken } from '@/utils/auth'
 
 const sections = [
   {
-    header: 'Account',
+    header: 'Main',
     links: [
       { path: '/dashboard', label: 'Dashboard' },
       { path: '/bhavcopy', label: 'Download Data' },
@@ -52,7 +52,21 @@ const sections = [
 
 const Sidebar: React.FC = () => {
   const location = useLocation()
-  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({ Account: true })
+  
+  // Find which section contains the current path
+  const getCurrentSection = () => {
+    for (const section of sections) {
+      if (section.links.some(link => link.path === location.pathname)) {
+        return section.header
+      }
+    }
+    return 'Main' // Default to Main section
+  }
+  
+  const currentSection = getCurrentSection()
+  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({ 
+    [currentSection]: true 
+  })
 
   const handleToggle = (header: string) => {
     setOpenSections((prev) => ({ ...prev, [header]: !prev[header] }))
@@ -60,16 +74,7 @@ const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-64 min-h-screen bg-white">
-      <div className="flex flex-col h-full">
-        {/* Logo/Brand */}
-        <div className="flex items-center justify-center h-16 px-6 border-b border-gray-200">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">S</span>
-            </div>
-            <span className="ml-2 text-lg font-semibold text-gray-900">AI Stocks</span>
-          </div>
-        </div>
+      <div className="flex flex-col h-full">       
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 overflow-y-auto">
           <div className="space-y-2">

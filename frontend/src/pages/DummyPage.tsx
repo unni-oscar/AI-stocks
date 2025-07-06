@@ -103,7 +103,7 @@ const statusColor: Record<StatusColor, string> = {
 
 const DummyPage: React.FC = () => {
   return (
-    <div className="max-w-6xl w-full">
+    <div>
       <div className="mt-4 mb-6">
         <h1 className="text-3xl text-gray-900">Team Members</h1>
         <p className="text-gray-500 text-base mt-1">Manage and view your team members.</p>
