@@ -23,9 +23,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="kt-container-fixed flex w-full">
           {showSidebar && <Sidebar />}
           <main className="grow" id="content" role="content">
-            {children}
-          </main>
-        </div>
+          {children}
+        </main>
+      </div>
       </div>
       {/* Footer */}
       <Footer />

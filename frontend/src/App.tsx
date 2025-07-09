@@ -13,7 +13,10 @@ import StockDetailPage from '@/pages/StockDetailPage'
 import WatchlistPage from '@/pages/WatchlistPage'
 import DeliverySpikesPage from '@/pages/DeliverySpikesPage'
 import StockMasterPage from '@/pages/StockMasterPage'
+import ProfilePage from '@/pages/ProfilePage'
 import DummyPage from '@/pages/DummyPage'
+import TopGainersPage from '@/pages/TopGainersPage'
+import TopLosersPage from '@/pages/TopLosersPage'
 import { isAuthenticated } from '@/utils/auth'
 import './index.css'
 
@@ -56,7 +59,11 @@ function App() {
             <Route path="/stock-master" element={<RequireAuth><StockMasterPage /></RequireAuth>} />
           <Route path="/watchlist" element={<RequireAuth><WatchlistPage /></RequireAuth>} />
           <Route path="/delivery-spikes" element={<RequireAuth><DeliverySpikesPage /></RequireAuth>} />
+          <Route path="/top-gainers" element={<RequireAuth><TopGainersPage /></RequireAuth>} />
+          <Route path="/top-losers" element={<RequireAuth><TopLosersPage /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/dummy" element={<DummyPage />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </> : <Route path="*" element={<Navigate to="/" replace />} />}
       </Routes>
     </Layout>

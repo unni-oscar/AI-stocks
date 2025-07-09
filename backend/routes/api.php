@@ -37,9 +37,14 @@ Route::get('/analysis/delivery', [StockAnalysisController::class, 'getDeliveryAn
 Route::get('/analysis/summary', [StockAnalysisController::class, 'getSummaryStats']);
 Route::get('/analysis/master-stocks', [StockAnalysisController::class, 'getMasterStocks']);
 Route::get('/analysis/stock/{symbol}', [StockAnalysisController::class, 'getStockDetails']);
+Route::get('/analysis/top-gainers', [StockAnalysisController::class, 'getTopGainers']);
+Route::get('/analysis/top-losers', [StockAnalysisController::class, 'getTopLosers']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
+    // User routes
+    Route::get('/user/profile', [AuthController::class, 'profile']);
+    
     // Bhavcopy routes
     Route::get('/bhavcopy/eq-stocks', [BhavcopyController::class, 'getEqStocks']);
     Route::post('/bhavcopy/fetch', [BhavcopyController::class, 'fetchMonth']);

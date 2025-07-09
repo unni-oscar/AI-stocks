@@ -444,15 +444,15 @@ const CsvProcessorPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-gray-700">Select Year:</label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(Number(e.target.value))}
             className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {years.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+        >
+          {years.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
         </div>
         <div className="flex-1" />
       </div>
@@ -468,22 +468,22 @@ const CsvProcessorPage: React.FC = () => {
       {/* Month Grid */}
       <div className="overflow-x-auto rounded border">
         <div className="grid grid-cols-3 gap-6 p-6 bg-white">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
-            const monthStatus = getStatusForMonth(selectedYear, month)
-            const days = getMonthDays(selectedYear, month)
-            const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
-            const hasData = processedDays.length > 0
-            
-            return (
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
+          const monthStatus = getStatusForMonth(selectedYear, month)
+          const days = getMonthDays(selectedYear, month)
+          const processedDays = days.filter(day => isDateProcessed(selectedYear, month, day))
+          const hasData = processedDays.length > 0
+          
+          return (
               <div key={month} className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {getMonthName(month)}
-                  </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {getMonthName(month)}
+                </h3>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm text-gray-500">
-                      {processedDays.length}/{days.length} days
-                    </div>
+                <div className="text-sm text-gray-500">
+                  {processedDays.length}/{days.length} days
+                </div>
                     <button
                       onClick={() => handleProcessMonth(selectedYear, month)}
                       disabled={monthStatus?.status === 'processing'}
@@ -514,73 +514,73 @@ const CsvProcessorPage: React.FC = () => {
                       )}
                     </button>
                   </div>
-                </div>
+              </div>
 
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-1 mb-4 relative z-10">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                    <div key={`csv-header-${month}-${selectedYear}-${index}-${day}-${Date.now()}`} className="text-xs text-gray-500 text-center py-1">
-                      {day}
-                    </div>
-                  ))}
-                  {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
-                    <div key={`csv-empty-${month}-${selectedYear}-${i}-${Date.now()}`} className="py-1"></div>
-                  ))}
-                  {days.map(day => {
-                    const dayStatus = getStatusForDay(selectedYear, month, day)
-                    const isProcessed = isDateProcessed(selectedYear, month, day)
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-1 mb-4 relative z-10">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                  <div key={`csv-header-${month}-${selectedYear}-${index}-${day}-${Date.now()}`} className="text-xs text-gray-500 text-center py-1">
+                    {day}
+                  </div>
+                ))}
+                {Array.from({ length: new Date(selectedYear, month - 1, 1).getDay() }, (_, i) => (
+                  <div key={`csv-empty-${month}-${selectedYear}-${i}-${Date.now()}`} className="py-1"></div>
+                ))}
+                {days.map(day => {
+                  const dayStatus = getStatusForDay(selectedYear, month, day)
+                  const isProcessed = isDateProcessed(selectedYear, month, day)
                     const hasDatabaseRecords = isDateInDatabase(selectedYear, month, day)
-                    const isProcessing = dayStatus?.status === 'processing'
-                    const isSuccess = dayStatus?.status === 'success'
-                    const isError = dayStatus?.status === 'error'
-                    
-                    return (
-                      <button
-                        key={`csv-day-${month}-${selectedYear}-${day}-${Date.now()}`}
-                        onClick={() => {
-                          console.log(`Processing day ${day} for ${month}/${selectedYear}`)
-                          handleProcessDay(selectedYear, month, day)
-                        }}
-                        disabled={isProcessing}
-                        className={`text-xs text-center py-1 px-1 rounded transition-all duration-200 cursor-pointer min-w-[20px] min-h-[20px] flex items-center justify-center relative z-20 pointer-events-auto ${
-                          isProcessing
-                            ? 'bg-yellow-100 text-yellow-800 cursor-not-allowed'
-                            : isSuccess
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
-                            : isError
-                            ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer'
+                  const isProcessing = dayStatus?.status === 'processing'
+                  const isSuccess = dayStatus?.status === 'success'
+                  const isError = dayStatus?.status === 'error'
+                  
+                  return (
+                    <button
+                      key={`csv-day-${month}-${selectedYear}-${day}-${Date.now()}`}
+                      onClick={() => {
+                        console.log(`Processing day ${day} for ${month}/${selectedYear}`)
+                        handleProcessDay(selectedYear, month, day)
+                      }}
+                      disabled={isProcessing}
+                      className={`text-xs text-center py-1 px-1 rounded transition-all duration-200 cursor-pointer min-w-[20px] min-h-[20px] flex items-center justify-center relative z-20 pointer-events-auto ${
+                        isProcessing
+                          ? 'bg-yellow-100 text-yellow-800 cursor-not-allowed'
+                          : isSuccess
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                          : isError
+                          ? 'bg-red-100 text-red-800 hover:bg-red-200 cursor-pointer'
                             : hasDatabaseRecords
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
-                            : 'text-gray-700 hover:bg-blue-100 hover:text-blue-800 cursor-pointer'
-                        }`}
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer'
+                          : 'text-gray-700 hover:bg-blue-100 hover:text-blue-800 cursor-pointer'
+                      }`}
                         title={
                           isProcessing ? 'Processing...' : 
                           hasDatabaseRecords ? 'Has records in database' : 
                           isProcessed ? 'File processed but no database records' : 
                           `Process day ${day}`
                         }
-                      >
-                        {isProcessing ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
-                        ) : (
-                          day
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Status Message */}
-                {monthStatus?.message && (
-                  <div className={`mt-2 text-xs ${
-                    monthStatus.status === 'error' ? 'text-red-600' : 'text-green-600'
-                  }`}>
-                    {monthStatus.message}
-                  </div>
-                )}
+                    >
+                      {isProcessing ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-600"></div>
+                      ) : (
+                        day
+                      )}
+                    </button>
+                  )
+                })}
               </div>
-            )
-          })}
+
+              {/* Status Message */}
+              {monthStatus?.message && (
+                <div className={`mt-2 text-xs ${
+                  monthStatus.status === 'error' ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {monthStatus.message}
+                </div>
+              )}
+            </div>
+          )
+        })}
         </div>
       </div>
     </div>

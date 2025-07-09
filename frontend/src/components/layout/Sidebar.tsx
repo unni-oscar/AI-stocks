@@ -12,7 +12,10 @@ const sections = [
       { path: '/stocks', label: 'All Stocks' },
       { path: '/stock-master', label: 'Stock Master' },
       { path: '/delivery-spikes', label: 'Delivery Spikes' },
+      { path: '/top-gainers', label: 'Top Gainers' },
+      { path: '/top-losers', label: 'Top Losers' },
       { path: '/watchlist', label: 'Watchlist' },
+      { path: '/profile', label: 'Profile' },
       { path: '/dummy', label: 'Dummy' },
     ],
   },
@@ -92,22 +95,22 @@ const Sidebar: React.FC = () => {
                 {section.links.length > 0 && openSections[section.header] && (
                   <div className="pl-4 space-y-1">
                     {section.links.map((item) => (
-                      <Link
+              <Link
                         key={item.path}
-                        to={item.path}
+                to={item.path}
                         className={`block py-1 text-sm font-normal rounded transition-all duration-200 ${
-                          location.pathname === item.path
+                  location.pathname === item.path
                             ? 'text-blue-700 font-semibold'
                             : 'text-gray-700 hover:text-blue-800'
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
+                }`}
+              >
+                {item.label}
+              </Link>
                     ))}
                   </div>
                 )}
-              </div>
-            ))}
+            </div>
+          ))}
           </div>
         </nav>
       </div>
