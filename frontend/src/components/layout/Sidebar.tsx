@@ -14,6 +14,8 @@ const sections = [
       { path: '/delivery-spikes', label: 'Delivery Spikes' },
       { path: '/top-gainers', label: 'Top Gainers' },
       { path: '/top-losers', label: 'Top Losers' },
+      { path: '/52-week-high', label: '52 Week High' },
+      { path: '/52-week-low', label: '52 Week Low' },
       { path: '/watchlist', label: 'Watchlist' },
       { path: '/profile', label: 'Profile' },
       { path: '/dummy', label: 'Dummy' },

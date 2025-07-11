@@ -608,4 +608,292 @@ class StockAnalysisController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get 52 week high - stocks with highest prices in 52 week period
+     */
+    public function get52WeekHigh(Request $request)
+    {
+        try {
+            // Get the date from request or use the latest available date
+            $selectedDate = $request->input('date');
+            
+            if ($selectedDate) {
+                $requestedDate = Carbon::parse($selectedDate);
+                
+                // Check if data exists for the requested date
+                $dataExists = DB::table('bhavcopy_data')
+                    ->where('trade_date', $requestedDate->format('Y-m-d'))
+                    ->exists();
+                
+                if ($dataExists) {
+                    $latestDate = $requestedDate;
+                } else {
+                    // Find the last available date before or equal to the requested date
+                    $latestDate = DB::table('bhavcopy_data')
+                        ->where('trade_date', '<=', $requestedDate->format('Y-m-d'))
+                        ->max('trade_date');
+                    
+                    if (!$latestDate) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'No data available for the selected date or earlier'
+                        ], 404);
+                    }
+                    
+                    $latestDate = Carbon::parse($latestDate);
+                    
+                    Log::info("No data for requested date {$requestedDate->format('Y-m-d')}, using last available date: {$latestDate->format('Y-m-d')}");
+                }
+            } else {
+                // Get the latest available date
+                $latestDate = DB::table('bhavcopy_data')
+                    ->max('trade_date');
+                
+                if (!$latestDate) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'No data available in database'
+                    ], 404);
+                }
+                
+                $latestDate = Carbon::parse($latestDate);
+            }
+            
+            // Calculate 52 weeks ago date (365 days)
+            $fiftyTwoWeeksAgo = $latestDate->copy()->subDays(365);
+            
+            Log::info("52 Week High Analysis - Latest Date: {$latestDate->format('Y-m-d')}, 52 Weeks Ago: {$fiftyTwoWeeksAgo->format('Y-m-d')}");
+            
+            // Simple query: Find stocks where current close price equals the maximum close price in last 52 weeks
+            $stocks52WeekHigh = DB::table('bhavcopy_data as current')
+                ->join(DB::raw('(SELECT symbol, MAX(close_price) as max_close_price FROM bhavcopy_data WHERE trade_date BETWEEN ? AND ? AND series = ? GROUP BY symbol) as max_closes'), function($join) use ($fiftyTwoWeeksAgo, $latestDate) {
+                    $join->on('current.symbol', '=', 'max_closes.symbol');
+                })
+                ->join(DB::raw('(SELECT symbol, close_price as prev_close FROM bhavcopy_data WHERE trade_date = (SELECT MAX(trade_date) FROM bhavcopy_data WHERE trade_date < ? AND series = ?) AND series = ?) as prev'), function($join) use ($latestDate) {
+                    $join->on('current.symbol', '=', 'prev.symbol');
+                })
+                ->addBinding([
+                    $fiftyTwoWeeksAgo->format('Y-m-d'), $latestDate->format('Y-m-d'), 'EQ',
+                    $latestDate->format('Y-m-d'), 'EQ', 'EQ'
+                ], 'join')
+                ->select([
+                    'current.symbol',
+                    'current.series',
+                    'current.close_price as current_price',
+                    'max_closes.max_close_price as fifty_two_week_high',
+                    'current.total_traded_qty as current_volume',
+                    'current.deliv_per as current_deliv_per',
+                    DB::raw('ROUND(((current.close_price - prev.prev_close) / prev.prev_close) * 100, 2) as change_percent'),
+                    DB::raw('ROUND(current.close_price - prev.prev_close, 2) as change_absolute')
+                ])
+                ->where('current.trade_date', '=', $latestDate->format('Y-m-d'))
+                ->where('current.series', 'EQ') // Only equity stocks
+                ->where('current.close_price', '>', 0) // Ensure price is not zero
+                ->where('current.close_price', '=', DB::raw('max_closes.max_close_price')) // Only stocks where today's close is the 52-week high
+                ->orderBy('change_percent', 'desc') // Sort by biggest gainers first
+                ->get();
+
+            Log::info("52 Week High Query - Found " . $stocks52WeekHigh->count() . " stocks");
+            
+            // Log some sample data for debugging
+            if ($stocks52WeekHigh->count() > 0) {
+                $top5 = $stocks52WeekHigh->take(5);
+                foreach ($top5 as $stock) {
+                    Log::info("52 Week High: {$stock->symbol} - Current: {$stock->current_price}, 52W High: {$stock->fifty_two_week_high}");
+                }
+            }
+
+            // Format the data
+            $formattedStocks = $stocks52WeekHigh->map(function ($stock) {
+                return [
+                    'symbol' => $stock->symbol,
+                    'series' => $stock->series,
+                    'current_price' => round($stock->current_price, 2),
+                    'fifty_two_week_high' => round($stock->fifty_two_week_high, 2),
+                    'fifty_two_week_high_date' => null, // We'll add this later if needed
+                    'current_volume' => number_format($stock->current_volume),
+                    'current_deliv_per' => round($stock->current_deliv_per, 2),
+                    'change_percent' => $stock->change_percent,
+                    'change_absolute' => $stock->change_absolute
+                ];
+            })
+            ->groupBy('symbol')
+            ->map(function ($group) {
+                return $group->first(); // Take only the first occurrence of each symbol
+            })
+            ->values();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'stocks' => $formattedStocks,
+                    'total_stocks' => $formattedStocks->count(),
+                    'latest_date' => $latestDate->format('Y-m-d'),
+                    'fifty_two_weeks_ago' => $fiftyTwoWeeksAgo->format('Y-m-d'),
+                    'analysis_date' => now()->format('Y-m-d H:i:s'),
+                    'debug_info' => [
+                        'latest_date' => $latestDate->format('Y-m-d'),
+                        'fifty_two_weeks_ago' => $fiftyTwoWeeksAgo->format('Y-m-d'),
+                        'total_stocks_found' => $stocks52WeekHigh->count(),
+                        'max_52_week_high' => $stocks52WeekHigh->max('fifty_two_week_high') ?? 0
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in 52 week high analysis: ' . $e->getMessage());
+            Log::error('Exception details: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to analyze 52 week high',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get 52 week low - stocks with lowest prices in 52 week period
+     */
+    public function get52WeekLow(Request $request)
+    {
+        try {
+            // Get the date from request or use the latest available date
+            $selectedDate = $request->input('date');
+            
+            if ($selectedDate) {
+                $requestedDate = Carbon::parse($selectedDate);
+                
+                // Check if data exists for the requested date
+                $dataExists = DB::table('bhavcopy_data')
+                    ->where('trade_date', $requestedDate->format('Y-m-d'))
+                    ->exists();
+                
+                if ($dataExists) {
+                    $latestDate = $requestedDate;
+                } else {
+                    // Find the last available date before or equal to the requested date
+                    $latestDate = DB::table('bhavcopy_data')
+                        ->where('trade_date', '<=', $requestedDate->format('Y-m-d'))
+                        ->max('trade_date');
+                    
+                    if (!$latestDate) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'No data available for the selected date or earlier'
+                        ], 404);
+                    }
+                    
+                    $latestDate = Carbon::parse($latestDate);
+                    
+                    Log::info("No data for requested date {$requestedDate->format('Y-m-d')}, using last available date: {$latestDate->format('Y-m-d')}");
+                }
+            } else {
+                // Get the latest available date
+                $latestDate = DB::table('bhavcopy_data')
+                    ->max('trade_date');
+                
+                if (!$latestDate) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'No data available in database'
+                    ], 404);
+                }
+                
+                $latestDate = Carbon::parse($latestDate);
+            }
+            
+            // Calculate 52 weeks ago date (365 days)
+            $fiftyTwoWeeksAgo = $latestDate->copy()->subDays(365);
+            
+            Log::info("52 Week Low Analysis - Latest Date: {$latestDate->format('Y-m-d')}, 52 Weeks Ago: {$fiftyTwoWeeksAgo->format('Y-m-d')}");
+            
+            // Simple query: Find stocks where current close price equals the minimum close price in last 52 weeks
+            $stocks52WeekLow = DB::table('bhavcopy_data as current')
+                ->join(DB::raw('(SELECT symbol, MIN(close_price) as min_close_price FROM bhavcopy_data WHERE trade_date BETWEEN ? AND ? AND series = ? GROUP BY symbol) as min_closes'), function($join) use ($fiftyTwoWeeksAgo, $latestDate) {
+                    $join->on('current.symbol', '=', 'min_closes.symbol');
+                })
+                ->join(DB::raw('(SELECT symbol, close_price as prev_close FROM bhavcopy_data WHERE trade_date = (SELECT MAX(trade_date) FROM bhavcopy_data WHERE trade_date < ? AND series = ?) AND series = ?) as prev'), function($join) use ($latestDate) {
+                    $join->on('current.symbol', '=', 'prev.symbol');
+                })
+                ->addBinding([
+                    $fiftyTwoWeeksAgo->format('Y-m-d'), $latestDate->format('Y-m-d'), 'EQ',
+                    $latestDate->format('Y-m-d'), 'EQ', 'EQ'
+                ], 'join')
+                ->select([
+                    'current.symbol',
+                    'current.series',
+                    'current.close_price as current_price',
+                    'min_closes.min_close_price as fifty_two_week_low',
+                    'current.total_traded_qty as current_volume',
+                    'current.deliv_per as current_deliv_per',
+                    DB::raw('ROUND(((current.close_price - prev.prev_close) / prev.prev_close) * 100, 2) as change_percent'),
+                    DB::raw('ROUND(current.close_price - prev.prev_close, 2) as change_absolute')
+                ])
+                ->where('current.trade_date', '=', $latestDate->format('Y-m-d'))
+                ->where('current.series', 'EQ') // Only equity stocks
+                ->where('current.close_price', '>', 0) // Ensure price is not zero
+                ->where('current.close_price', '=', DB::raw('min_closes.min_close_price')) // Only stocks where today's close is the 52-week low
+                ->orderByRaw('ABS(ROUND(((current.close_price - prev.prev_close) / prev.prev_close) * 100, 2)) DESC') // Sort by absolute value of change (biggest changes first)
+                ->get();
+
+            Log::info("52 Week Low Query - Found " . $stocks52WeekLow->count() . " stocks");
+            
+            // Log some sample data for debugging
+            if ($stocks52WeekLow->count() > 0) {
+                $top5 = $stocks52WeekLow->take(5);
+                foreach ($top5 as $stock) {
+                    Log::info("52 Week Low: {$stock->symbol} - Current: {$stock->current_price}, 52W Low: {$stock->fifty_two_week_low}");
+                }
+            }
+
+            // Format the data
+            $formattedStocks = $stocks52WeekLow->map(function ($stock) {
+                return [
+                    'symbol' => $stock->symbol,
+                    'series' => $stock->series,
+                    'current_price' => round($stock->current_price, 2),
+                    'fifty_two_week_low' => round($stock->fifty_two_week_low, 2),
+                    'fifty_two_week_low_date' => null, // We'll add this later if needed
+                    'current_volume' => number_format($stock->current_volume),
+                    'current_deliv_per' => round($stock->current_deliv_per, 2),
+                    'change_percent' => $stock->change_percent,
+                    'change_absolute' => $stock->change_absolute
+                ];
+            })
+            ->groupBy('symbol')
+            ->map(function ($group) {
+                return $group->first(); // Take only the first occurrence of each symbol
+            })
+            ->values();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'stocks' => $formattedStocks,
+                    'total_stocks' => $formattedStocks->count(),
+                    'latest_date' => $latestDate->format('Y-m-d'),
+                    'fifty_two_weeks_ago' => $fiftyTwoWeeksAgo->format('Y-m-d'),
+                    'analysis_date' => now()->format('Y-m-d H:i:s'),
+                    'debug_info' => [
+                        'latest_date' => $latestDate->format('Y-m-d'),
+                        'fifty_two_weeks_ago' => $fiftyTwoWeeksAgo->format('Y-m-d'),
+                        'total_stocks_found' => $stocks52WeekLow->count(),
+                        'min_52_week_low' => $stocks52WeekLow->min('fifty_two_week_low') ?? 0
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in 52 week low analysis: ' . $e->getMessage());
+            Log::error('Exception details: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to analyze 52 week low',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 

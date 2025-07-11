@@ -39,6 +39,8 @@ Route::get('/analysis/master-stocks', [StockAnalysisController::class, 'getMaste
 Route::get('/analysis/stock/{symbol}', [StockAnalysisController::class, 'getStockDetails']);
 Route::get('/analysis/top-gainers', [StockAnalysisController::class, 'getTopGainers']);
 Route::get('/analysis/top-losers', [StockAnalysisController::class, 'getTopLosers']);
+Route::get('/analysis/52-week-high', [StockAnalysisController::class, 'get52WeekHigh']);
+Route::get('/analysis/52-week-low', [StockAnalysisController::class, 'get52WeekLow']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
