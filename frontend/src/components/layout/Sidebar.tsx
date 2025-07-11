@@ -17,6 +17,7 @@ const sections = [
       { path: '/52-week-high', label: '52 Week High' },
       { path: '/52-week-low', label: '52 Week Low' },
       { path: '/most-active', label: 'Most Active' },
+      { path: '/companies', label: 'Companies' },
       { path: '/watchlist', label: 'Watchlist' },
       { path: '/profile', label: 'Profile' },
       { path: '/dummy', label: 'Dummy' },

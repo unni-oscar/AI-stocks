@@ -647,137 +647,63 @@ const StockDetailPage: React.FC = () => {
     );
   };
 
-  console.log('StockDetailPage component is about to render...');
   return (
-    <div className="w-full mx-auto px-0 pt-6 pb-6">
-      {/* DEBUG PANEL - Always visible */}
-      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-xs">
-        <div><strong>DEBUG PANEL</strong></div>
-        <div>Raw API Response:</div>
-        <pre className="bg-white border border-gray-100 rounded p-2 overflow-x-auto max-h-40">{rawStockDetailsResponse ? JSON.stringify(rawStockDetailsResponse, null, 2) : 'No response yet'}</pre>
-        <div>stockDetails.hierarchy: {stockDetails && stockDetails.hierarchy ? JSON.stringify(stockDetails.hierarchy) : 'No hierarchy'}</div>
-        <div>sector_name: {stockDetails && stockDetails.hierarchy ? String(stockDetails.hierarchy.sector_name) : 'N/A'}</div>
-        <div>industry_new_name: {stockDetails && stockDetails.hierarchy ? String(stockDetails.hierarchy.industry_new_name) : 'N/A'}</div>
-        <div>igroup_name: {stockDetails && stockDetails.hierarchy ? String(stockDetails.hierarchy.igroup_name) : 'N/A'}</div>
-        <div>isubgroup_name: {stockDetails && stockDetails.hierarchy ? String(stockDetails.hierarchy.isubgroup_name) : 'N/A'}</div>
-      </div>
-      {/* Always show hierarchy as plain text */}
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
-        <div><strong>Hierarchy (plain text):</strong></div>
-        <div>Sector Name: {stockDetails && stockDetails.hierarchy ? stockDetails.hierarchy.sector_name || 'N/A' : 'N/A'}</div>
-        <div>Industry New Name: {stockDetails && stockDetails.hierarchy ? stockDetails.hierarchy.industry_new_name || 'N/A' : 'N/A'}</div>
-        <div>Igroup Name: {stockDetails && stockDetails.hierarchy ? stockDetails.hierarchy.igroup_name || 'N/A' : 'N/A'}</div>
-        <div>ISubgroup Name: {stockDetails && stockDetails.hierarchy ? stockDetails.hierarchy.isubgroup_name || 'N/A' : 'N/A'}</div>
-      </div>
-      {/* Test if component is rendering */}
-      <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded text-xs">
-        <div><strong>COMPONENT IS RENDERING - StockDetailPage</strong></div>
-        <div>Symbol from URL: {symbol}</div>
-        <div>Component loaded at: {new Date().toLocaleTimeString()}</div>
-      </div>
-      
-      {/* Debug Panel */}
-      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-xs">
-        <div><strong>Debug Panel</strong></div>
-        <div>Token: <span className="break-all">{localStorage.getItem('auth_token') || 'None'}</span></div>
-        <div>Authorization Header: <span className="break-all">Bearer {localStorage.getItem('auth_token') || 'None'}</span></div>
-      </div>
-      <div className="flex items-center mb-4">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mr-4 bg-gradient-to-r from-sky-500 to-gray-600 bg-clip-text text-transparent">
+    <div>
+      <div className="mt-4 mb-6">
+        <div className="flex items-center">
+          <h1 className="text-3xl text-gray-900">{stockDetails?.company_name || symbol}</h1>
+          {inWatchlist !== null && (
+            <button
+              className={`ml-4 p-2 rounded-full border border-transparent transition ${inWatchlist ? 'text-red-600 hover:text-red-800 hover:border-red-200' : 'text-yellow-500 hover:text-yellow-600 hover:border-yellow-200'}`}
+              onClick={inWatchlist ? handleRemoveFromWatchlist : handleAddToWatchlist}
+              disabled={watchlistLoading}
+              title={inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}
+            >
+              {watchlistLoading ? (
+                <FaSpinner className="animate-spin" />
+              ) : inWatchlist ? (
+                <FaTrash />
+              ) : (
+                inWatchlist === false ? <FaRegStar /> : <FaStar />
+              )}
+            </button>
+          )}
+        </div>
+        <p className="text-gray-500 text-base mt-1">
           {symbol}
-        </h1>
-        {inWatchlist !== null && (
-          <button
-            className={`ml-2 p-2 rounded-full border border-transparent transition ${inWatchlist ? 'text-red-600 hover:text-red-800 hover:border-red-200' : 'text-yellow-500 hover:text-yellow-600 hover:border-yellow-200'}`}
-            onClick={inWatchlist ? handleRemoveFromWatchlist : handleAddToWatchlist}
-            disabled={watchlistLoading}
-            title={inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}
-          >
-            {watchlistLoading ? (
-              <FaSpinner className="animate-spin" />
-            ) : inWatchlist ? (
-              <FaTrash />
-            ) : (
-              inWatchlist === false ? <FaRegStar /> : <FaStar />
-            )}
-          </button>
-        )}
+        </p>
       </div>
       
       {/* Stock Hierarchy Information */}
       {stockDetails && stockDetails.hierarchy && (
         <div className="mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <span className="font-medium text-gray-700">Classification:</span>
+            <span className="font-medium text-gray-700">Sector/Industry:</span>
             {stockDetails.hierarchy.sector_name && (
               <>
-                <span className="text-blue-600 font-semibold">{stockDetails.hierarchy.sector_name}</span>
+                <span className="text-gray-600 font-normal">{stockDetails.hierarchy.sector_name}</span>
                 <span className="text-gray-400">›</span>
               </>
             )}
             {stockDetails.hierarchy.industry_new_name && (
               <>
-                <span className="text-green-600 font-semibold">{stockDetails.hierarchy.industry_new_name}</span>
+                <span className="text-gray-600 font-normal">{stockDetails.hierarchy.industry_new_name}</span>
                 <span className="text-gray-400">›</span>
               </>
             )}
             {stockDetails.hierarchy.igroup_name && (
               <>
-                <span className="text-purple-600 font-semibold">{stockDetails.hierarchy.igroup_name}</span>
+                <span className="text-gray-600 font-normal">{stockDetails.hierarchy.igroup_name}</span>
                 <span className="text-gray-400">›</span>
               </>
             )}
             {stockDetails.hierarchy.isubgroup_name && (
-              <span className="text-orange-600 font-semibold">{stockDetails.hierarchy.isubgroup_name}</span>
+              <span className="text-gray-600 font-normal">{stockDetails.hierarchy.isubgroup_name}</span>
             )}
           </div>
-          {stockDetails.company_name && (
-            <div className="mt-2 text-sm text-gray-500">
-              <span className="font-medium">Company:</span> {stockDetails.company_name}
-            </div>
-          )}
         </div>
       )}
       
-      {/* Show hierarchy even if some fields are null */}
-      {stockDetails && stockDetails.hierarchy && (
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg shadow-sm border border-blue-200">
-          <div className="text-sm text-blue-800">
-            <div><strong>Raw Hierarchy Data:</strong></div>
-            <div>Sector: {stockDetails.hierarchy.sector_name || 'null'}</div>
-            <div>Industry: {stockDetails.hierarchy.industry_new_name || 'null'}</div>
-            <div>Igroup: {stockDetails.hierarchy.igroup_name || 'null'}</div>
-            <div>ISubgroup: {stockDetails.hierarchy.isubgroup_name || 'null'}</div>
-          </div>
-        </div>
-      )}
-      
-      {/* Debug Information */}
-      <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-        <div>Stock Details Loading: {stockDetailsLoading ? 'Yes' : 'No'}</div>
-        <div>Stock Details Error: {stockDetailsError || 'None'}</div>
-        <div>Stock Details: {stockDetails ? 'Present' : 'Not loaded'}</div>
-        {stockDetails && (
-          <>
-            <div>Hierarchy: {JSON.stringify(stockDetails.hierarchy)}</div>
-            <div>Company: {stockDetails.company_name}</div>
-            <div>Symbol: {stockDetails.symbol}</div>
-          </>
-        )}
-      </div>
-      
-      {/* Simple Stock Details Display */}
-      {stockDetails && (
-        <div className="mb-4 p-4 bg-green-50 rounded-lg shadow-sm border border-green-200">
-          <div className="text-sm text-green-800">
-            <div><strong>Stock Details Found:</strong></div>
-            <div>Symbol: {stockDetails.symbol}</div>
-            <div>Company: {stockDetails.company_name}</div>
-            <div>Series: {stockDetails.series}</div>
-            <div>Has Hierarchy: {stockDetails.hierarchy ? 'Yes' : 'No'}</div>
-          </div>
-        </div>
-      )}
       {/* Clean and vibrant Delivery spikes and Avg price info table */}
       <div className="flex justify-end w-full mb-3">
         <div className="bg-white shadow-sm border border-gray-100 rounded-lg overflow-hidden">

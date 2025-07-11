@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 interface Stock52WeekLow {
   symbol: string;
   series: string;
+  company_name: string;
   current_price: number;
   fifty_two_week_low: number;
   fifty_two_week_low_date: string;
@@ -24,7 +25,7 @@ interface ApiResponse {
   };
 }
 
-type SortField = 'symbol' | 'current_price' | 'change_percent' | 'change_absolute';
+type SortField = 'symbol' | 'current_price' | 'current_volume' | 'change_percent' | 'change_absolute';
 type SortOrder = 'asc' | 'desc';
 
 const WeekLowPage: React.FC = () => {
@@ -96,6 +97,7 @@ const WeekLowPage: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     let filtered = data.filter(stock =>
       stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      stock.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.series.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -151,16 +153,19 @@ const WeekLowPage: React.FC = () => {
     let widthClass = '';
     switch (field) {
       case 'current_price':
-        widthClass = 'w-1/4';
+        widthClass = 'w-1/6';
+        break;
+      case 'current_volume':
+        widthClass = 'w-1/6';
         break;
       case 'change_percent':
-        widthClass = 'w-1/4';
+        widthClass = 'w-1/6';
         break;
       case 'change_absolute':
-        widthClass = 'w-1/4';
+        widthClass = 'w-1/6';
         break;
       default:
-        widthClass = 'w-1/4';
+        widthClass = 'w-1/6';
     }
     
     const baseClass = `px-4 py-3 cursor-pointer hover:bg-gray-50 select-none text-right ${widthClass}`;
@@ -193,7 +198,7 @@ const WeekLowPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4">
         <input
           type="text"
-          placeholder="Search Stocks..."
+          placeholder="Search by company name or symbol..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="border rounded px-3 py-2 w-full md:w-64 text-sm"
@@ -250,14 +255,19 @@ const WeekLowPage: React.FC = () => {
               currentData.map((stock, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <a
-                      href={`/stocks/${encodeURIComponent(stock.symbol)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-900 hover:text-gray-700 font-medium"
-                    >
-                      {stock.symbol}
-                    </a>
+                    <div>
+                      <a
+                        href={`/stocks/${encodeURIComponent(stock.symbol)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-900 hover:text-gray-700"
+                      >
+                        {stock.company_name}
+                      </a>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {stock.symbol}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right">
                     ₹{stock.current_price !== undefined && stock.current_price !== null && !isNaN(Number(stock.current_price))
@@ -265,7 +275,7 @@ const WeekLowPage: React.FC = () => {
                       : '-'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs ${
                       Number(stock.change_percent) >= 0 
                         ? 'bg-green-100 text-green-700' 
                         : 'bg-red-100 text-red-700'

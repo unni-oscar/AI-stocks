@@ -1,30 +1,22 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { isAuthenticated, removeToken } from '@/utils/auth'
 
-const navLinksAuth = [
-  { path: '/', label: 'Home' },
-  { path: '/dashboard', label: 'Dashboard' },
-  { path: '/bhavcopy', label: 'Download Data' },
-  { path: '/process', label: 'Process Data' },
-  { path: '/stocks', label: 'All Stocks' },
-  { path: '/stock-master', label: 'Stock Master' },
-  { path: '/delivery-spikes', label: 'Delivery Spikes' },
-  { path: '/watchlist', label: 'Watchlist' },
-]
-const navLinksGuest = [
-  { path: '/', label: 'Home' },
-]
-
 const Header: React.FC = () => {
   const authenticated = isAuthenticated()
-  const location = useLocation()
   const navigate = useNavigate()
-  const navLinks = authenticated ? navLinksAuth : navLinksGuest
+  const [searchTerm, setSearchTerm] = useState('')
 
   const handleLogout = () => {
     removeToken()
     navigate('/')
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchTerm.trim()) {
+      navigate(`/stocks/${encodeURIComponent(searchTerm.trim())}`)
+    }
   }
 
   return (
@@ -36,22 +28,21 @@ const Header: React.FC = () => {
             <img src="/smadau.png" alt="smadau logo" className="h-10 w-auto" />
           </Link>
         </div>
-        {/* Center: Navigation Menu */}
-        <nav className="flex-1 flex justify-center gap-6 text-gray-700 text-sm font-medium">
-          {navLinks.map(link => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className={`px-2 py-1 border-b-2 transition-colors duration-150 ${
-                location.pathname === link.path
-                  ? 'border-blue-600 text-blue-700' : 'border-transparent hover:text-blue-600'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        {/* Right: Auth Buttons or Logout */}
+        
+        {/* Center: Search Box */}
+        <div className="flex-1 flex justify-center max-w-md">
+          <form onSubmit={handleSearch} className="w-full">
+            <input
+              type="text"
+              placeholder="Search stocks by symbol..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </form>
+        </div>
+        
+        {/* Right: Logout Button */}
         <div className="flex items-center gap-4">
           {authenticated ? (
             <button

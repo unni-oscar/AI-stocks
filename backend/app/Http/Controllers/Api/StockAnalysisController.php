@@ -381,18 +381,17 @@ class StockAnalysisController extends Controller
                          ->where('current.trade_date', '=', $latestDate->format('Y-m-d'))
                          ->where('previous.trade_date', '=', $previousDate->format('Y-m-d'));
                 })
+                ->leftJoin('master_stocks', 'current.symbol', '=', 'master_stocks.symbol')
                 ->select([
                     'current.symbol',
                     'current.series',
+                    'master_stocks.company_name',
                     'current.close_price as current_price',
                     'previous.close_price as previous_price',
-                    'current.total_traded_qty as current_volume',
-                    'previous.total_traded_qty as previous_volume',
                     'current.deliv_per as current_deliv_per',
                     'previous.deliv_per as previous_deliv_per',
                     DB::raw('ROUND(((current.close_price - previous.close_price) / previous.close_price) * 100, 2) as price_change_percent'),
-                    DB::raw('ROUND(current.close_price - previous.close_price, 2) as price_change_absolute'),
-                    DB::raw('ROUND(((current.total_traded_qty - previous.total_traded_qty) / previous.total_traded_qty) * 100, 2) as volume_change_percent')
+                    DB::raw('ROUND(current.close_price - previous.close_price, 2) as price_change_absolute')
                 ])
                 ->where('current.series', 'EQ') // Only equity stocks
                 ->where('previous.series', 'EQ') // Only equity stocks for previous day
@@ -416,13 +415,11 @@ class StockAnalysisController extends Controller
                 return [
                     'symbol' => $stock->symbol,
                     'series' => $stock->series,
+                    'company_name' => $stock->company_name ?? $stock->symbol, // Use company name if available, otherwise fall back to symbol
                     'current_price' => round($stock->current_price, 2),
                     'previous_price' => round($stock->previous_price, 2),
                     'price_change_percent' => $stock->price_change_percent,
                     'price_change_absolute' => $stock->price_change_absolute,
-                    'current_volume' => number_format($stock->current_volume),
-                    'previous_volume' => number_format($stock->previous_volume),
-                    'volume_change_percent' => $stock->volume_change_percent,
                     'current_deliv_per' => round($stock->current_deliv_per, 2),
                     'previous_deliv_per' => round($stock->previous_deliv_per, 2),
                     'deliv_per_change' => round($stock->current_deliv_per - $stock->previous_deliv_per, 2)
@@ -532,18 +529,17 @@ class StockAnalysisController extends Controller
                          ->where('current.trade_date', '=', $latestDate->format('Y-m-d'))
                          ->where('previous.trade_date', '=', $previousDate->format('Y-m-d'));
                 })
+                ->leftJoin('master_stocks', 'current.symbol', '=', 'master_stocks.symbol')
                 ->select([
                     'current.symbol',
                     'current.series',
+                    'master_stocks.company_name',
                     'current.close_price as current_price',
                     'previous.close_price as previous_price',
-                    'current.total_traded_qty as current_volume',
-                    'previous.total_traded_qty as previous_volume',
                     'current.deliv_per as current_deliv_per',
                     'previous.deliv_per as previous_deliv_per',
                     DB::raw('ROUND(((current.close_price - previous.close_price) / previous.close_price) * 100, 2) as price_change_percent'),
-                    DB::raw('ROUND(current.close_price - previous.close_price, 2) as price_change_absolute'),
-                    DB::raw('ROUND(((current.total_traded_qty - previous.total_traded_qty) / previous.total_traded_qty) * 100, 2) as volume_change_percent')
+                    DB::raw('ROUND(current.close_price - previous.close_price, 2) as price_change_absolute')
                 ])
                 ->where('current.series', 'EQ') // Only equity stocks
                 ->where('previous.series', 'EQ') // Only equity stocks for previous day
@@ -567,13 +563,11 @@ class StockAnalysisController extends Controller
                 return [
                     'symbol' => $stock->symbol,
                     'series' => $stock->series,
+                    'company_name' => $stock->company_name ?? $stock->symbol, // Use company name if available, otherwise fall back to symbol
                     'current_price' => round($stock->current_price, 2),
                     'previous_price' => round($stock->previous_price, 2),
                     'price_change_percent' => $stock->price_change_percent,
                     'price_change_absolute' => $stock->price_change_absolute,
-                    'current_volume' => number_format($stock->current_volume),
-                    'previous_volume' => number_format($stock->previous_volume),
-                    'volume_change_percent' => $stock->volume_change_percent,
                     'current_deliv_per' => round($stock->current_deliv_per, 2),
                     'previous_deliv_per' => round($stock->previous_deliv_per, 2),
                     'deliv_per_change' => round($stock->current_deliv_per - $stock->previous_deliv_per, 2)
@@ -673,6 +667,7 @@ class StockAnalysisController extends Controller
                 ->join(DB::raw('(SELECT symbol, close_price as prev_close FROM bhavcopy_data WHERE trade_date = (SELECT MAX(trade_date) FROM bhavcopy_data WHERE trade_date < ? AND series = ?) AND series = ?) as prev'), function($join) use ($latestDate) {
                     $join->on('current.symbol', '=', 'prev.symbol');
                 })
+                ->leftJoin('master_stocks', 'current.symbol', '=', 'master_stocks.symbol')
                 ->addBinding([
                     $fiftyTwoWeeksAgo->format('Y-m-d'), $latestDate->format('Y-m-d'), 'EQ',
                     $latestDate->format('Y-m-d'), 'EQ', 'EQ'
@@ -680,6 +675,7 @@ class StockAnalysisController extends Controller
                 ->select([
                     'current.symbol',
                     'current.series',
+                    'master_stocks.company_name',
                     'current.close_price as current_price',
                     'max_closes.max_close_price as fifty_two_week_high',
                     'current.total_traded_qty as current_volume',
@@ -709,6 +705,7 @@ class StockAnalysisController extends Controller
                 return [
                     'symbol' => $stock->symbol,
                     'series' => $stock->series,
+                    'company_name' => $stock->company_name ?? $stock->symbol, // Use company name if available, otherwise fall back to symbol
                     'current_price' => round($stock->current_price, 2),
                     'fifty_two_week_high' => round($stock->fifty_two_week_high, 2),
                     'fifty_two_week_high_date' => null, // We'll add this later if needed
@@ -817,6 +814,7 @@ class StockAnalysisController extends Controller
                 ->join(DB::raw('(SELECT symbol, close_price as prev_close FROM bhavcopy_data WHERE trade_date = (SELECT MAX(trade_date) FROM bhavcopy_data WHERE trade_date < ? AND series = ?) AND series = ?) as prev'), function($join) use ($latestDate) {
                     $join->on('current.symbol', '=', 'prev.symbol');
                 })
+                ->leftJoin('master_stocks', 'current.symbol', '=', 'master_stocks.symbol')
                 ->addBinding([
                     $fiftyTwoWeeksAgo->format('Y-m-d'), $latestDate->format('Y-m-d'), 'EQ',
                     $latestDate->format('Y-m-d'), 'EQ', 'EQ'
@@ -824,6 +822,7 @@ class StockAnalysisController extends Controller
                 ->select([
                     'current.symbol',
                     'current.series',
+                    'master_stocks.company_name',
                     'current.close_price as current_price',
                     'min_closes.min_close_price as fifty_two_week_low',
                     'current.total_traded_qty as current_volume',
@@ -853,6 +852,7 @@ class StockAnalysisController extends Controller
                 return [
                     'symbol' => $stock->symbol,
                     'series' => $stock->series,
+                    'company_name' => $stock->company_name ?? $stock->symbol, // Use company name if available, otherwise fall back to symbol
                     'current_price' => round($stock->current_price, 2),
                     'fifty_two_week_low' => round($stock->fifty_two_week_low, 2),
                     'fifty_two_week_low_date' => null, // We'll add this later if needed
@@ -955,12 +955,14 @@ class StockAnalysisController extends Controller
                 ->join(DB::raw('(SELECT symbol, close_price as prev_close FROM bhavcopy_data WHERE trade_date = (SELECT MAX(trade_date) FROM bhavcopy_data WHERE trade_date < ? AND series = ?) AND series = ?) as prev'), function($join) use ($latestDate) {
                     $join->on('current.symbol', '=', 'prev.symbol');
                 })
+                ->leftJoin('master_stocks', 'current.symbol', '=', 'master_stocks.symbol')
                 ->addBinding([
                     $latestDate->format('Y-m-d'), 'EQ', 'EQ'
                 ], 'join')
                 ->select([
                     'current.symbol',
                     'current.series',
+                    'master_stocks.company_name',
                     'current.close_price as current_price',
                     'current.total_traded_qty as current_volume',
                     'current.deliv_per as current_deliv_per',
@@ -990,6 +992,7 @@ class StockAnalysisController extends Controller
                 return [
                     'symbol' => $stock->symbol,
                     'series' => $stock->series,
+                    'company_name' => $stock->company_name ?? $stock->symbol, // Use company name if available, otherwise fall back to symbol
                     'current_price' => round($stock->current_price, 2),
                     'current_volume' => number_format($stock->current_volume),
                     'current_deliv_per' => round($stock->current_deliv_per, 2),
@@ -1025,6 +1028,200 @@ class StockAnalysisController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to analyze most active stocks',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get companies with hierarchical filtering
+     */
+    public function getCompanies(Request $request, $sectorId = null, $industryId = null, $igroupId = null, $isubgroupId = null)
+    {
+        try {
+            $query = \App\Models\MasterStock::query();
+            
+            // Apply filters based on URL parameters
+            if ($sectorId) {
+                $query->where('sector_id', $sectorId);
+            }
+            if ($industryId) {
+                $query->where('industry_new_name_id', $industryId);
+            }
+            if ($igroupId) {
+                $query->where('igroup_name_id', $igroupId);
+            }
+            if ($isubgroupId) {
+                $query->where('isubgroup_name_id', $isubgroupId);
+            }
+            
+            // Only active stocks
+            $query->where('is_active', true);
+            
+            // Get companies
+            $companies = $query->select([
+                'id',
+                'symbol',
+                'company_name',
+                'series',
+                'is_active'
+            ])->orderBy('company_name')->get();
+            
+            // Get hierarchy data for navigation
+            $hierarchy = [];
+            $currentPath = [];
+            
+            if (!$sectorId) {
+                // Show all sectors
+                $hierarchy['sectors'] = \App\Models\Sector::withCount('stocks')
+                    ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                    ->get()
+                    ->map(function($sector) {
+                        return [
+                            'id' => $sector->id,
+                            'name' => $sector->name,
+                            'count' => $sector->stocks_count
+                        ];
+                    });
+            } elseif (!$industryId) {
+                // Show industries for this sector
+                $sector = \App\Models\Sector::find($sectorId);
+                if ($sector) {
+                    $currentPath['sector_id'] = $sector->id;
+                    $currentPath['sector_name'] = $sector->name;
+                    
+                    // Also return all sectors for the dropdown
+                    $hierarchy['sectors'] = \App\Models\Sector::withCount('stocks')
+                        ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                        ->get()
+                        ->map(function($sector) {
+                            return [
+                                'id' => $sector->id,
+                                'name' => $sector->name,
+                                'count' => $sector->stocks_count
+                            ];
+                        });
+                    
+                    $hierarchy['industries'] = \App\Models\IndustryNewName::withCount('stocks')
+                        ->where('sector_id', $sectorId)
+                        ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                        ->get()
+                        ->map(function($industry) {
+                            return [
+                                'id' => $industry->id,
+                                'name' => $industry->name,
+                                'count' => $industry->stocks_count
+                            ];
+                        });
+                }
+            } elseif (!$igroupId) {
+                // Show igroups for this industry
+                $sector = \App\Models\Sector::find($sectorId);
+                $industry = \App\Models\IndustryNewName::find($industryId);
+                
+                if ($sector && $industry) {
+                    $currentPath['sector_id'] = $sector->id;
+                    $currentPath['sector_name'] = $sector->name;
+                    $currentPath['industry_id'] = $industry->id;
+                    $currentPath['industry_name'] = $industry->name;
+                    
+                    // Also return all sectors and industries for the dropdowns
+                    $hierarchy['sectors'] = \App\Models\Sector::withCount('stocks')
+                        ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                        ->get()
+                        ->map(function($sector) {
+                            return [
+                                'id' => $sector->id,
+                                'name' => $sector->name,
+                                'count' => $sector->stocks_count
+                            ];
+                        });
+                    
+                    $hierarchy['industries'] = \App\Models\IndustryNewName::withCount('stocks')
+                        ->where('sector_id', $sectorId)
+                        ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                        ->get()
+                        ->map(function($industry) {
+                            return [
+                                'id' => $industry->id,
+                                'name' => $industry->name,
+                                'count' => $industry->stocks_count
+                            ];
+                        });
+                    
+                    $hierarchy['igroups'] = \App\Models\IgroupName::withCount('stocks')
+                        ->where('industry_new_name_id', $industryId)
+                        ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                        ->get()
+                        ->map(function($igroup) {
+                            return [
+                                'id' => $igroup->id,
+                                'name' => $igroup->name,
+                                'count' => $igroup->stocks_count
+                            ];
+                        });
+                }
+            } elseif (!$isubgroupId) {
+                // Show isubgroups for this igroup
+                $sector = \App\Models\Sector::find($sectorId);
+                $industry = \App\Models\IndustryNewName::find($industryId);
+                $igroup = \App\Models\IgroupName::find($igroupId);
+                
+                if ($sector && $industry && $igroup) {
+                    $currentPath['sector_id'] = $sector->id;
+                    $currentPath['sector_name'] = $sector->name;
+                    $currentPath['industry_id'] = $industry->id;
+                    $currentPath['industry_name'] = $industry->name;
+                    $currentPath['igroup_id'] = $igroup->id;
+                    $currentPath['igroup_name'] = $igroup->name;
+                    
+                    $hierarchy['isubgroups'] = \App\Models\IsubgroupName::withCount('stocks')
+                        ->where('igroup_name_id', $igroupId)
+                        ->whereHas('stocks', function($q) { $q->where('is_active', true); })
+                        ->get()
+                        ->map(function($isubgroup) {
+                            return [
+                                'id' => $isubgroup->id,
+                                'name' => $isubgroup->name,
+                                'count' => $isubgroup->stocks_count
+                            ];
+                        });
+                }
+            } else {
+                // Show companies for this isubgroup
+                $sector = \App\Models\Sector::find($sectorId);
+                $industry = \App\Models\IndustryNewName::find($industryId);
+                $igroup = \App\Models\IgroupName::find($igroupId);
+                $isubgroup = \App\Models\IsubgroupName::find($isubgroupId);
+                
+                if ($sector && $industry && $igroup && $isubgroup) {
+                    $currentPath['sector_id'] = $sector->id;
+                    $currentPath['sector_name'] = $sector->name;
+                    $currentPath['industry_id'] = $industry->id;
+                    $currentPath['industry_name'] = $industry->name;
+                    $currentPath['igroup_id'] = $igroup->id;
+                    $currentPath['igroup_name'] = $igroup->name;
+                    $currentPath['isubgroup_id'] = $isubgroup->id;
+                    $currentPath['isubgroup_name'] = $isubgroup->name;
+                }
+            }
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'companies' => $companies,
+                    'hierarchy' => $hierarchy,
+                    'current_path' => $currentPath,
+                    'total_companies' => $companies->count()
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error getting companies: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to get companies',
                 'error' => $e->getMessage()
             ], 500);
         }

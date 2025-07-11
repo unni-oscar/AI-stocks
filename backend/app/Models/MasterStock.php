@@ -15,13 +15,11 @@ class MasterStock extends Model
         'company_name',
         'isin',
         'face_value',
-        'industry',
-        'sector',
         'is_active',
         'is_nifty50',
         'is_nifty100',
         'is_nifty500',
-        // New hierarchical fields
+        // Hierarchical fields
         'sector_id',
         'industry_new_name_id',
         'igroup_name_id',

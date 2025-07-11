@@ -4,13 +4,11 @@ import { toast } from 'react-hot-toast';
 interface TopGainer {
   symbol: string;
   series: string;
+  company_name: string;
   current_price: number;
   previous_price: number;
   price_change_percent: number;
   price_change_absolute: number;
-  current_volume: string;
-  previous_volume: string;
-  volume_change_percent: number;
   current_deliv_per: number;
   previous_deliv_per: number;
   deliv_per_change: number;
@@ -27,7 +25,7 @@ interface ApiResponse {
   };
 }
 
-type SortField = 'symbol' | 'current_price' | 'price_change_percent' | 'price_change_absolute' | 'current_volume';
+type SortField = 'symbol' | 'current_price' | 'price_change_percent' | 'price_change_absolute';
 type SortOrder = 'asc' | 'desc';
 
 const TopGainersPage: React.FC = () => {
@@ -99,6 +97,7 @@ const TopGainersPage: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     let filtered = data.filter(stock =>
       stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      stock.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.series.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -108,12 +107,6 @@ const TopGainersPage: React.FC = () => {
       filtered.sort((a, b) => {
         let aValue: any = a[sortField];
         let bValue: any = b[sortField];
-        
-        // Handle volume sorting - convert string to number
-        if (sortField === 'current_volume') {
-          aValue = parseInt(aValue.replace(/,/g, ''));
-          bValue = parseInt(bValue.replace(/,/g, ''));
-        }
         
         // Handle numeric values
         if (typeof aValue === 'number' && typeof bValue === 'number') {
@@ -166,9 +159,6 @@ const TopGainersPage: React.FC = () => {
         widthClass = 'w-1/6';
         break;
       case 'price_change_absolute':
-        widthClass = 'w-1/6';
-        break;
-      case 'current_volume':
         widthClass = 'w-1/6';
         break;
       default:
@@ -228,7 +218,7 @@ const TopGainersPage: React.FC = () => {
         <table className="min-w-full bg-white" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr className="text-left text-xs text-gray-500">
-              <th className="px-4 py-3 text-left w-1/3">
+              <th className="px-4 py-3 text-left w-1/2">
                 Name
               </th>
               <th 
@@ -249,18 +239,12 @@ const TopGainersPage: React.FC = () => {
               >
                 Change ₹{renderSortIndicator('price_change_absolute')}
               </th>
-              <th 
-                className={getSortableHeaderClass('current_volume')}
-                onClick={() => handleSort('current_volume')}
-              >
-                Volume{renderSortIndicator('current_volume')}
-              </th>
             </tr>
           </thead>
           <tbody>
             {currentData.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                   No data available
                 </td>
               </tr>
@@ -268,30 +252,30 @@ const TopGainersPage: React.FC = () => {
               currentData.map((stock, idx) => (
                 <tr key={`${stock.symbol}-${idx}`} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-3 text-left">
-                    <div className="font-semibold text-gray-900 text-sm">
+                    <div>
                       <a
                         href={`/stocks/${encodeURIComponent(stock.symbol)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:underline"
+                        className="text-gray-900 hover:text-gray-700"
                       >
-                        {stock.symbol.replace('-EQ', '')}
+                        {stock.company_name}
                       </a>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {stock.symbol}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">
+                  <td className="px-4 py-3 text-sm text-gray-900 text-right">
                     ₹{stock.current_price}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <span className="inline-block px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
                       +{stock.price_change_percent}%
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-green-600 font-medium text-right">
+                  <td className="px-4 py-3 text-sm text-green-600 text-right">
                     +₹{stock.price_change_absolute}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right">
-                    {stock.current_volume}
                   </td>
                 </tr>
               ))

@@ -20,6 +20,7 @@ import TopLosersPage from '@/pages/TopLosersPage'
 import WeekHighPage from '@/pages/52WeekHighPage'
 import WeekLowPage from '@/pages/52WeekLowPage'
 import MostActivePage from '@/pages/MostActivePage'
+import CompaniesPage from '@/pages/CompaniesPage'
 import { isAuthenticated } from '@/utils/auth'
 import './index.css'
 
@@ -50,12 +51,7 @@ function App() {
           <Route path="/process" element={<RequireAuth><CsvProcessorPage /></RequireAuth>} />
             <Route path="/stocks/:symbol" element={
               <RequireAuth>
-                <div>
-                  <div style={{background: 'red', color: 'white', padding: '10px'}}>
-                    ROUTE MATCHED - StockDetailPage should render here
-                  </div>
                   <StockDetailPage />
-                </div>
               </RequireAuth>
             } />
           <Route path="/stocks" element={<RequireAuth><AllStocksPage /></RequireAuth>} />
@@ -67,6 +63,11 @@ function App() {
           <Route path="/52-week-high" element={<RequireAuth><WeekHighPage /></RequireAuth>} />
           <Route path="/52-week-low" element={<RequireAuth><WeekLowPage /></RequireAuth>} />
           <Route path="/most-active" element={<RequireAuth><MostActivePage /></RequireAuth>} />
+          <Route path="/companies" element={<RequireAuth><CompaniesPage /></RequireAuth>} />
+          <Route path="/companies/:sectorId" element={<RequireAuth><CompaniesPage /></RequireAuth>} />
+          <Route path="/companies/:sectorId/:industryId" element={<RequireAuth><CompaniesPage /></RequireAuth>} />
+          <Route path="/companies/:sectorId/:industryId/:igroupId" element={<RequireAuth><CompaniesPage /></RequireAuth>} />
+          <Route path="/companies/:sectorId/:industryId/:igroupId/:isubgroupId" element={<RequireAuth><CompaniesPage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/dummy" element={<DummyPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
