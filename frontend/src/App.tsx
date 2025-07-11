@@ -19,6 +19,7 @@ import TopGainersPage from '@/pages/TopGainersPage'
 import TopLosersPage from '@/pages/TopLosersPage'
 import WeekHighPage from '@/pages/52WeekHighPage'
 import WeekLowPage from '@/pages/52WeekLowPage'
+import MostActivePage from '@/pages/MostActivePage'
 import { isAuthenticated } from '@/utils/auth'
 import './index.css'
 
@@ -65,6 +66,7 @@ function App() {
           <Route path="/top-losers" element={<RequireAuth><TopLosersPage /></RequireAuth>} />
           <Route path="/52-week-high" element={<RequireAuth><WeekHighPage /></RequireAuth>} />
           <Route path="/52-week-low" element={<RequireAuth><WeekLowPage /></RequireAuth>} />
+          <Route path="/most-active" element={<RequireAuth><MostActivePage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/dummy" element={<DummyPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

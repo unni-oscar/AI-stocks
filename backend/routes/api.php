@@ -41,6 +41,7 @@ Route::get('/analysis/top-gainers', [StockAnalysisController::class, 'getTopGain
 Route::get('/analysis/top-losers', [StockAnalysisController::class, 'getTopLosers']);
 Route::get('/analysis/52-week-high', [StockAnalysisController::class, 'get52WeekHigh']);
 Route::get('/analysis/52-week-low', [StockAnalysisController::class, 'get52WeekLow']);
+Route::get('/analysis/most-active', [StockAnalysisController::class, 'getMostActive']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {

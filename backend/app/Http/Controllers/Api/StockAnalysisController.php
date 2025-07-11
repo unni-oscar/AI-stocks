@@ -896,4 +896,137 @@ class StockAnalysisController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get most active stocks - stocks with highest trading volume
+     */
+    public function getMostActive(Request $request)
+    {
+        try {
+            // Get the date from request or use the latest available date
+            $selectedDate = $request->input('date');
+            
+            if ($selectedDate) {
+                $requestedDate = Carbon::parse($selectedDate);
+                
+                // Check if data exists for the requested date
+                $dataExists = DB::table('bhavcopy_data')
+                    ->where('trade_date', $requestedDate->format('Y-m-d'))
+                    ->exists();
+                
+                if ($dataExists) {
+                    $latestDate = $requestedDate;
+                } else {
+                    // Find the last available date before or equal to the requested date
+                    $latestDate = DB::table('bhavcopy_data')
+                        ->where('trade_date', '<=', $requestedDate->format('Y-m-d'))
+                        ->max('trade_date');
+                    
+                    if (!$latestDate) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'No data available for the selected date or earlier'
+                        ], 404);
+                    }
+                    
+                    $latestDate = Carbon::parse($latestDate);
+                    
+                    Log::info("No data for requested date {$requestedDate->format('Y-m-d')}, using last available date: {$latestDate->format('Y-m-d')}");
+                }
+            } else {
+                // Get the latest available date
+                $latestDate = DB::table('bhavcopy_data')
+                    ->max('trade_date');
+                
+                if (!$latestDate) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'No data available in database'
+                    ], 404);
+                }
+                
+                $latestDate = Carbon::parse($latestDate);
+            }
+            
+            Log::info("Most Active Analysis - Latest Date: {$latestDate->format('Y-m-d')}");
+            
+            // Get stocks with highest trading volume for the latest date
+            $mostActiveStocks = DB::table('bhavcopy_data as current')
+                ->join(DB::raw('(SELECT symbol, close_price as prev_close FROM bhavcopy_data WHERE trade_date = (SELECT MAX(trade_date) FROM bhavcopy_data WHERE trade_date < ? AND series = ?) AND series = ?) as prev'), function($join) use ($latestDate) {
+                    $join->on('current.symbol', '=', 'prev.symbol');
+                })
+                ->addBinding([
+                    $latestDate->format('Y-m-d'), 'EQ', 'EQ'
+                ], 'join')
+                ->select([
+                    'current.symbol',
+                    'current.series',
+                    'current.close_price as current_price',
+                    'current.total_traded_qty as current_volume',
+                    'current.deliv_per as current_deliv_per',
+                    DB::raw('ROUND(((current.close_price - prev.prev_close) / prev.prev_close) * 100, 2) as change_percent'),
+                    DB::raw('ROUND(current.close_price - prev.prev_close, 2) as change_absolute')
+                ])
+                ->where('current.trade_date', '=', $latestDate->format('Y-m-d'))
+                ->where('current.series', 'EQ') // Only equity stocks
+                ->where('current.close_price', '>', 0) // Ensure price is not zero
+                ->where('current.total_traded_qty', '>', 0) // Ensure volume is not zero
+                ->orderBy('current.total_traded_qty', 'desc') // Sort by highest volume first
+                ->limit(100) // Limit to top 100 stocks
+                ->get();
+
+            Log::info("Most Active Query - Found " . $mostActiveStocks->count() . " stocks");
+            
+            // Log some sample data for debugging
+            if ($mostActiveStocks->count() > 0) {
+                $top5 = $mostActiveStocks->take(5);
+                foreach ($top5 as $stock) {
+                    Log::info("Most Active: {$stock->symbol} - Volume: {$stock->current_volume}, Price: {$stock->current_price}");
+                }
+            }
+
+            // Format the data
+            $formattedStocks = $mostActiveStocks->map(function ($stock) {
+                return [
+                    'symbol' => $stock->symbol,
+                    'series' => $stock->series,
+                    'current_price' => round($stock->current_price, 2),
+                    'current_volume' => number_format($stock->current_volume),
+                    'current_deliv_per' => round($stock->current_deliv_per, 2),
+                    'change_percent' => $stock->change_percent,
+                    'change_absolute' => $stock->change_absolute
+                ];
+            })
+            ->groupBy('symbol')
+            ->map(function ($group) {
+                return $group->first(); // Take only the first occurrence of each symbol
+            })
+            ->values();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'stocks' => $formattedStocks,
+                    'total_stocks' => $formattedStocks->count(),
+                    'latest_date' => $latestDate->format('Y-m-d'),
+                    'analysis_date' => now()->format('Y-m-d H:i:s'),
+                    'debug_info' => [
+                        'latest_date' => $latestDate->format('Y-m-d'),
+                        'total_stocks_found' => $mostActiveStocks->count(),
+                        'max_volume' => $mostActiveStocks->max('current_volume') ?? 0
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in most active analysis: ' . $e->getMessage());
+            Log::error('Exception details: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to analyze most active stocks',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 } 
