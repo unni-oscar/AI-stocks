@@ -61,6 +61,10 @@ const TopLosersPage: React.FC = () => {
           setPreviousDate(result.data.previous_date);
           setCurrentPage(1); // Reset to first page when new data loads
           
+          // Set the date picker to the latest date from the database if not already set
+          if (!selectedDate) {
+            setSelectedDate(result.data.latest_date);
+          }
           // Check if the date was automatically adjusted
           const requestedDate = selectedDate || new Date().toISOString().slice(0, 10);
           setDateAdjusted(requestedDate !== result.data.latest_date);
@@ -80,9 +84,7 @@ const TopLosersPage: React.FC = () => {
 
   // Fetch last available date on mount
   useEffect(() => {
-    // Set today's date as default
-    const today = new Date().toISOString().slice(0, 10);
-    setSelectedDate(today);
+    // Don't set any default date - let the API response set it
   }, []);
 
   // Handle sorting

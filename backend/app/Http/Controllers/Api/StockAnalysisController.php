@@ -254,6 +254,34 @@ class StockAnalysisController extends Controller
     }
 
     /**
+     * Debug endpoint to check sector data
+     */
+    public function debugSector(Request $request, $sectorId)
+    {
+        try {
+            $sector = \App\Models\Sector::find($sectorId);
+            $stock = \App\Models\MasterStock::where('symbol', 'ABREL')->first();
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'sector_id' => $sectorId,
+                    'sector_exists' => $sector ? true : false,
+                    'sector_name' => $stock->sector_id,
+                    'stock_sector_id' => $stock->sector_id,
+                    'sector_object' => $sector ? $sector->toArray() : null,
+                    'stock_sector_relation' => $stock->sector ? $stock->sector->toArray() : null,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get individual stock details with hierarchical classification
      */
     public function getStockDetails(Request $request, $symbol)
@@ -273,6 +301,33 @@ class StockAnalysisController extends Controller
                 ], 404);
             }
 
+            // Debug logging
+            Log::info("Stock details for {$symbol}:", [
+                'sector_id' => $stock->sector_id,
+                'sector_loaded' => $stock->relationLoaded('sector'),
+                'sector_object' => $stock->sector ? $stock->sector->toArray() : null,
+                'industry_new_name_id' => $stock->industry_new_name_id,
+                'igroup_name_id' => $stock->igroup_name_id,
+                'isubgroup_name_id' => $stock->isubgroup_name_id,
+            ]);
+
+            // Add debug info to response for ABREL
+            $debugInfo = null;
+            if ($symbol === 'ABREL') {
+                $sector = \App\Models\Sector::find($stock->sector_id);
+                $debugInfo = [
+                    'sector_id' => $stock->sector_id,
+                    'sector_exists' => $sector ? true : false,
+                    'sector_name' => $sector ? $sector->name : null,
+                    'sector_object' => $sector ? $sector->toArray() : null,
+                    'stock_sector_relation' => $stock->sector ? $stock->sector->toArray() : null,
+                ];
+                
+                // Fix: Force reload the relationship
+                $stock->load('sector');
+                $debugInfo['stock_sector_relation_after_load'] = $stock->sector ? $stock->sector->toArray() : null;
+            }
+
             return response()->json([
                 'status' => 'success',
                 'data' => [
@@ -280,7 +335,7 @@ class StockAnalysisController extends Controller
                     'company_name' => $stock->company_name,
                     'series' => $stock->series,
                     'hierarchy' => [
-                        'sector_name' => $stock->sector ? $stock->sector->name : null,
+                        'sector_name' => $stock->sector ? $stock->sector->name : ($stock->sector_id ? \App\Models\Sector::find($stock->sector_id)->name : null),
                         'industry_new_name' => $stock->industryNewName ? $stock->industryNewName->name : null,
                         'igroup_name' => $stock->igroupName ? $stock->igroupName->name : null,
                         'isubgroup_name' => $stock->isubgroupName ? $stock->isubgroupName->name : null,
@@ -292,7 +347,8 @@ class StockAnalysisController extends Controller
                         'is_nifty50' => $stock->is_nifty50,
                         'is_nifty100' => $stock->is_nifty100,
                         'is_nifty500' => $stock->is_nifty500,
-                    ]
+                    ],
+                    'debug_info' => $debugInfo
                 ]
             ]);
 
@@ -1028,6 +1084,170 @@ class StockAnalysisController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to analyze most active stocks',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get stocks with highest delivery percentage using the same logic as stocks page
+     */
+    public function getHighestDeliveryPercentage(Request $request)
+    {
+        Log::info('=== HIGHEST DELIVERY PERCENTAGE REQUESTED ===');
+        
+        try {
+            // Get the latest available date
+            $latestDate = DB::table('bhavcopy_data')
+                ->max('trade_date');
+            
+            if (!$latestDate) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No data available in database'
+                ], 404);
+            }
+
+            $latestDate = Carbon::parse($latestDate);
+            
+            // Calculate delivery percentages for different periods (same logic as stocks page)
+            $stocks = DB::table('bhavcopy_data')
+                ->select([
+                    'symbol',
+                    'series',
+                    // Latest delivery percentage (1 day)
+                    DB::raw('MAX(CASE WHEN trade_date = ? THEN deliv_per END) as latest_deliv_per'),
+                    // 3 days average
+                    DB::raw('AVG(CASE WHEN trade_date >= ? THEN deliv_per END) as avg_3_days'),
+                    // 7 days average
+                    DB::raw('AVG(CASE WHEN trade_date >= ? THEN deliv_per END) as avg_7_days'),
+                    // 30 days average
+                    DB::raw('AVG(CASE WHEN trade_date >= ? THEN deliv_per END) as avg_30_days'),
+                    // 180 days average
+                    DB::raw('AVG(CASE WHEN trade_date >= ? THEN deliv_per END) as avg_180_days'),
+                    // Latest close price
+                    DB::raw('MAX(CASE WHEN trade_date = ? THEN close_price END) as latest_close'),
+                    // Latest volume
+                    DB::raw('MAX(CASE WHEN trade_date = ? THEN total_traded_qty END) as latest_volume')
+                ])
+                ->where('series', 'EQ') // Only equity stocks
+                ->where('trade_date', '>=', $latestDate->copy()->subDays(180))
+                ->groupBy('symbol', 'series')
+                ->havingRaw('latest_deliv_per IS NOT NULL')
+                ->havingRaw('avg_3_days IS NOT NULL')
+                ->havingRaw('avg_7_days IS NOT NULL')
+                ->havingRaw('avg_30_days IS NOT NULL')
+                ->havingRaw('avg_180_days IS NOT NULL')
+                ->addBinding($latestDate->format('Y-m-d'), 'select') // latest_deliv_per
+                ->addBinding($latestDate->copy()->subDays(3)->format('Y-m-d'), 'select') // avg_3_days
+                ->addBinding($latestDate->copy()->subDays(7)->format('Y-m-d'), 'select') // avg_7_days
+                ->addBinding($latestDate->copy()->subDays(30)->format('Y-m-d'), 'select') // avg_30_days
+                ->addBinding($latestDate->copy()->subDays(180)->format('Y-m-d'), 'select') // avg_180_days
+                ->addBinding($latestDate->format('Y-m-d'), 'select') // latest_close
+                ->addBinding($latestDate->format('Y-m-d'), 'select') // latest_volume
+                ->get();
+
+            // Apply filtering conditions (same logic as stocks page)
+            $filteredStocks = $stocks->filter(function ($stock) {
+                $latest = $stock->latest_deliv_per;
+                $avg3 = $stock->avg_3_days;
+                $avg7 = $stock->avg_7_days;
+                $avg30 = $stock->avg_30_days;
+                $avg180 = $stock->avg_180_days;
+
+                // Condition 1: Latest > 3 days > 7 days > 30 days > 180 days
+                if ($latest > $avg3 && $avg3 > $avg7 && $avg7 > $avg30 && $avg30 > $avg180) {
+                    $stock->condition_met = 1;
+                    $stock->condition_type = 'Latest > 3d > 7d > 30d > 180d';
+                    return true;
+                }
+                
+                // Condition 2: 3 days > 7 days > 30 days > 180 days
+                if ($avg3 > $avg7 && $avg7 > $avg30 && $avg30 > $avg180) {
+                    $stock->condition_met = 2;
+                    $stock->condition_type = '3d > 7d > 30d > 180d';
+                    return true;
+                }
+                
+                // Condition 3: 7 days > 30 days > 180 days
+                if ($avg7 > $avg30 && $avg30 > $avg180) {
+                    $stock->condition_met = 3;
+                    $stock->condition_type = '7d > 30d > 180d';
+                    return true;
+                }
+                
+                // Condition 4: 30 days > 180 days
+                if ($avg30 > $avg180) {
+                    $stock->condition_met = 4;
+                    $stock->condition_type = '30d > 180d';
+                    return true;
+                }
+
+                return false;
+            });
+
+            // Sort by condition priority (1 is highest priority) and then by latest delivery percentage
+            $sortedStocks = $filteredStocks->sortBy('condition_met')
+                ->sortByDesc('latest_deliv_per')
+                ->values();
+
+            // Take only top 5 stocks
+            $top5Stocks = $sortedStocks->take(5);
+
+            // Get price change data for the top 5 stocks
+            $stocksWithPriceChange = $top5Stocks->map(function ($stock) use ($latestDate) {
+                // Get previous day's close price for price change calculation
+                $prevClose = DB::table('bhavcopy_data')
+                    ->where('symbol', $stock->symbol)
+                    ->where('series', 'EQ')
+                    ->where('trade_date', '<', $latestDate->format('Y-m-d'))
+                    ->orderBy('trade_date', 'desc')
+                    ->value('close_price');
+
+                $currentPrice = $stock->latest_close;
+                $changeAbsolute = $prevClose ? ($currentPrice - $prevClose) : 0;
+                $changePercent = $prevClose && $prevClose > 0 ? (($changeAbsolute / $prevClose) * 100) : 0;
+
+                return [
+                    'symbol' => $stock->symbol,
+                    'series' => $stock->series,
+                    'latest_close' => round($stock->latest_close, 2),
+                    'latest_volume' => number_format($stock->latest_volume),
+                    'delivery_percent' => round($stock->latest_deliv_per, 2),
+                    'change_percent' => round($changePercent, 2),
+                    'change_absolute' => round($changeAbsolute, 2),
+                    'delivery_percentages' => [
+                        'latest' => round($stock->latest_deliv_per, 2),
+                        'avg_3_days' => round($stock->avg_3_days, 2),
+                        'avg_7_days' => round($stock->avg_7_days, 2),
+                        'avg_30_days' => round($stock->avg_30_days, 2),
+                        'avg_180_days' => round($stock->avg_180_days, 2),
+                    ],
+                    'condition_met' => $stock->condition_met,
+                    'condition_type' => $stock->condition_type,
+                    'is_green' => $stock->condition_met <= 4 // All conditions show in green
+                ];
+            });
+
+            Log::info("Highest delivery percentage analysis completed. Found " . $stocksWithPriceChange->count() . " stocks in top 5.");
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'stocks' => $stocksWithPriceChange,
+                    'total_stocks' => $stocksWithPriceChange->count(),
+                    'latest_date' => $latestDate->format('Y-m-d'),
+                    'analysis_date' => now()->format('Y-m-d H:i:s')
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in highest delivery percentage analysis: ' . $e->getMessage());
+            Log::error('Exception details: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to analyze delivery data',
                 'error' => $e->getMessage()
             ], 500);
         }

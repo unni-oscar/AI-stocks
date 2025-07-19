@@ -187,7 +187,7 @@ const AllStocksPage: React.FC = () => {
         if (selectedDate) {
           params.append('date', selectedDate)
         }
-        const response = await fetch(`/api/bhavcopy/eq-stocks?${params}`, {
+        const response = await fetch(`http://localhost:3035/api/bhavcopy/eq-stocks?${params}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
@@ -219,7 +219,7 @@ const AllStocksPage: React.FC = () => {
     const fetchLastDate = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('/api/bhavcopy/database-stats', {
+        const response = await fetch('http://localhost:3035/api/bhavcopy/database-stats', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -343,7 +343,7 @@ const AllStocksPage: React.FC = () => {
               <th className="px-4 py-3 text-right">% (7d)</th>
               <th className="px-4 py-3 text-right">% (3d)</th>
               <th className="px-4 py-3 text-right">% (1d)</th>
-              <th className="px-4 py-3 text-right">Turnover (Cr)</th>
+              <th className="px-4 py-3 text-right">Turnover (lakhs)</th>
               <th className="px-4 py-3">Strength</th>
             </tr>
           </thead>

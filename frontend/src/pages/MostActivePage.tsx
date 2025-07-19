@@ -47,7 +47,7 @@ const MostActivePage: React.FC = () => {
         if (selectedDate) {
           params.append('date', selectedDate);
         }
-        const response = await fetch(`/api/analysis/most-active?${params}`);
+        const response = await fetch(`http://localhost:3035/api/analysis/most-active?${params}`);
         const result: ApiResponse = await response.json();
         
         if (result.status === 'success') {

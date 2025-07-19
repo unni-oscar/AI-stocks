@@ -50,7 +50,22 @@ const TopGainersPage: React.FC = () => {
         if (selectedDate) {
           params.append('date', selectedDate);
         }
-        const response = await fetch(`/api/analysis/top-gainers?${params}`);
+        const response = await fetch(`http://localhost:3035/api/analysis/top-gainers?${params}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (errorData.message === 'No previous trading day data available') {
+            setData([]);
+            setLatestDate('');
+            setPreviousDate('');
+            toast.error('No previous trading day data available. Need at least 2 trading days to calculate top gainers.');
+            return;
+          } else {
+            toast.error(`Error: ${errorData.message || 'Failed to fetch top gainers data'}`);
+            return;
+          }
+        }
+        
         const result: ApiResponse = await response.json();
         
         if (result.status === 'success') {
@@ -59,6 +74,10 @@ const TopGainersPage: React.FC = () => {
           setPreviousDate(result.data.previous_date);
           setCurrentPage(1); // Reset to first page when new data loads
           
+          // Set the date picker to the latest date from the database if not already set
+          if (!selectedDate) {
+            setSelectedDate(result.data.latest_date);
+          }
           // Check if the date was automatically adjusted
           const requestedDate = selectedDate || new Date().toISOString().slice(0, 10);
           setDateAdjusted(requestedDate !== result.data.latest_date);
@@ -78,9 +97,7 @@ const TopGainersPage: React.FC = () => {
 
   // Fetch last available date on mount
   useEffect(() => {
-    // Set today's date as default
-    const today = new Date().toISOString().slice(0, 10);
-    setSelectedDate(today);
+    // Don't set any default date - let the API response set it
   }, []);
 
   // Handle sorting

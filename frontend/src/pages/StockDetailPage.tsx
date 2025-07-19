@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { handleUnauthorized } from '@/utils/auth'
 import { FaStar, FaRegStar, FaTrash, FaSpinner } from 'react-icons/fa';
 import { createChart, DeepPartial, ChartOptions, CandlestickData, ColorType, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import { toast } from 'react-hot-toast';
 
 interface OhlcData {
   trade_date: string;
@@ -56,7 +57,7 @@ const StockDetailPage: React.FC = () => {
       setError(null);
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`/api/bhavcopy/ohlc/${encodeURIComponent(symbol || '')}`, {
+        const response = await fetch(`http://localhost:3035/api/bhavcopy/ohlc/${encodeURIComponent(symbol || '')}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -67,7 +68,9 @@ const StockDetailPage: React.FC = () => {
           return
         }
         const data = await response.json();
+        console.log('OHLC API response:', data);
         if (data.status === 'success') {
+          console.log('OHLC data sample:', data.data.slice(0, 3));
           setOhlc(data.data);
         } else {
           setError(data.message || 'Failed to fetch data');
@@ -89,7 +92,7 @@ const StockDetailPage: React.FC = () => {
       setWatchlistError(null);
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`/api/watchlist/${encodeURIComponent(symbol)}`, {
+        const response = await fetch(`http://localhost:3035/api/watchlist/${encodeURIComponent(symbol)}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -129,7 +132,7 @@ const StockDetailPage: React.FC = () => {
         console.log('Fetching stock details for:', symbol);
         console.log('Token:', token);
         console.log('Headers:', headers);
-        const response = await fetch(`/api/analysis/stock/${encodeURIComponent(symbol)}`, {
+        const response = await fetch(`http://localhost:3035/api/analysis/stock/${encodeURIComponent(symbol)}`, {
           headers,
         });
         console.log('Stock details response status:', response.status);
@@ -139,6 +142,9 @@ const StockDetailPage: React.FC = () => {
         if (response.ok && data.status === 'success') {
           setStockDetails(data.data);
           console.log('Stock details set:', data.data);
+          console.log('Stock hierarchy:', data.data.hierarchy);
+          console.log('Sector name:', data.data.hierarchy?.sector_name);
+          console.log('Debug info:', data.data.debug_info);
         } else {
           setStockDetailsError(data.message || 'Failed to fetch stock details');
           console.log('Stock details error:', data.message);
@@ -245,7 +251,7 @@ const StockDetailPage: React.FC = () => {
   // Helper to count delivery % spikes in a given date range
   function countDeliverySpikes(days: number) {
     const now = new Date();
-    return filteredOhlc.filter((row, idx) => {
+    const spikes = filteredOhlc.filter((row, idx) => {
       const rowDate = new Date(row.trade_date);
       const diffDays = (now.getTime() - rowDate.getTime()) / (1000 * 60 * 60 * 24);
       if (diffDays > days) return false;
@@ -265,11 +271,51 @@ const StockDetailPage: React.FC = () => {
       const avg30 = rollingAvg(delivPerArr, 30);
       const avg180 = rollingAvg(delivPerArr, 180);
       const a1 = avg1[idx], a3 = avg3[idx], a7 = avg7[idx], a30 = avg30[idx], a180 = avg180[idx];
-      return (
-        a1 !== null && a3 !== null && a7 !== null && a30 !== null && a180 !== null &&
-        a1 > a3 && a3 > a7 && a7 > a30 && a30 > a180
-      );
-    }).length;
+      
+      // Use adaptive logic based on available data
+      let isSpike = false;
+      
+      if (filteredOhlc.length >= 180) {
+        // Full analysis with 180-day average
+        isSpike = (
+          a1 !== null && a3 !== null && a7 !== null && a30 !== null && a180 !== null &&
+          a1 > a3 && a3 > a7 && a7 > a30 && a30 > a180
+        );
+      } else if (filteredOhlc.length >= 30) {
+        // Use 30-day as the longest average
+        isSpike = (
+          a1 !== null && a3 !== null && a7 !== null && a30 !== null &&
+          a1 > a3 && a3 > a7 && a7 > a30
+        );
+      } else if (filteredOhlc.length >= 7) {
+        // Use 7-day as the longest average
+        isSpike = (
+          a1 !== null && a3 !== null && a7 !== null &&
+          a1 > a3 && a3 > a7
+        );
+      } else if (filteredOhlc.length >= 3) {
+        // Use 3-day as the longest average
+        isSpike = (
+          a1 !== null && a3 !== null &&
+          a1 > a3
+        );
+      }
+      
+      if (isSpike) {
+        console.log(`Delivery spike found on ${row.trade_date}:`, { a1, a3, a7, a30, a180 });
+      }
+      
+      return isSpike;
+    });
+    
+    console.log(`Delivery spikes for ${days} days:`, {
+      totalDataPoints: filteredOhlc.length,
+      dateRange: days,
+      spikesFound: spikes.length,
+      spikeDates: spikes.map(s => s.trade_date)
+    });
+    
+    return spikes.length;
   }
   const spikes1w = countDeliverySpikes(7);
   const spikes1m = countDeliverySpikes(30);
@@ -297,14 +343,52 @@ const StockDetailPage: React.FC = () => {
       const rowDate = new Date(row.trade_date);
       const diffDays = (now.getTime() - rowDate.getTime()) / (1000 * 60 * 60 * 24);
       if (diffDays > days) return false;
+      
       const a1 = avg1[idx], a3 = avg3[idx], a7 = avg7[idx], a30 = avg30[idx], a180 = avg180[idx];
-      return (
-        a1 !== null && a3 !== null && a7 !== null && a30 !== null && a180 !== null &&
-        a1 > a3 && a3 > a7 && a7 > a30 && a30 > a180
-      );
+      
+      // Use adaptive logic based on available data (same as countDeliverySpikes)
+      let isSpike = false;
+      
+      if (filteredOhlc.length >= 180) {
+        // Full analysis with 180-day average
+        isSpike = (
+          a1 !== null && a3 !== null && a7 !== null && a30 !== null && a180 !== null &&
+          a1 > a3 && a3 > a7 && a7 > a30 && a30 > a180
+        );
+      } else if (filteredOhlc.length >= 30) {
+        // Use 30-day as the longest average
+        isSpike = (
+          a1 !== null && a3 !== null && a7 !== null && a30 !== null &&
+          a1 > a3 && a3 > a7 && a7 > a30
+        );
+      } else if (filteredOhlc.length >= 7) {
+        // Use 7-day as the longest average
+        isSpike = (
+          a1 !== null && a3 !== null && a7 !== null &&
+          a1 > a3 && a3 > a7
+        );
+      } else if (filteredOhlc.length >= 3) {
+        // Use 3-day as the longest average
+        isSpike = (
+          a1 !== null && a3 !== null &&
+          a1 > a3
+        );
+      }
+      
+      return isSpike;
     }).map(row => row.close_price);
+    
     if (prices.length === 0) return null;
     const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+    
+    console.log(`Average price at delivery spikes for ${days} days:`, {
+      totalDataPoints: filteredOhlc.length,
+      dateRange: days,
+      pricesFound: prices.length,
+      averagePrice: avg,
+      priceValues: prices
+    });
+    
     return avg;
   }
   const avgPrice1w = avgPriceAtDeliverySpikes(7);
@@ -322,7 +406,7 @@ const StockDetailPage: React.FC = () => {
     setWatchlistError(null);
     try {
       const token = localStorage.getItem('auth_token');
-              const response = await fetch('/api/watchlist', {
+              const response = await fetch('http://localhost:3035/api/watchlist', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -338,11 +422,18 @@ const StockDetailPage: React.FC = () => {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         setInWatchlist(true);
+        // Show success toast with company name
+        const displayName = stockDetails?.company_name || symbol;
+        toast.success(`${displayName} has been added to watchlist`);
       } else {
-        setWatchlistError(data.message || 'Failed to add to watchlist');
+        const errorMessage = data.message || 'Failed to add to watchlist';
+        setWatchlistError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (err) {
-      setWatchlistError('Network error');
+      const errorMessage = 'Network error';
+      setWatchlistError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setWatchlistLoading(false);
     }
@@ -355,7 +446,7 @@ const StockDetailPage: React.FC = () => {
     setWatchlistError(null);
     try {
       const token = localStorage.getItem('auth_token');
-              const response = await fetch(`/api/watchlist/${encodeURIComponent(symbol)}`, {
+              const response = await fetch(`http://localhost:3035/api/watchlist/${encodeURIComponent(symbol)}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -369,11 +460,18 @@ const StockDetailPage: React.FC = () => {
       const data = await response.json();
       if (response.ok && data.status === 'success') {
         setInWatchlist(false);
+        // Show success toast with company name
+        const displayName = stockDetails?.company_name || symbol;
+        toast.success(`${displayName} has been removed from watchlist`);
       } else {
-        setWatchlistError(data.message || 'Failed to remove from watchlist');
+        const errorMessage = data.message || 'Failed to remove from watchlist';
+        setWatchlistError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (err) {
-      setWatchlistError('Network error');
+      const errorMessage = 'Network error';
+      setWatchlistError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setWatchlistLoading(false);
     }
@@ -399,16 +497,61 @@ const StockDetailPage: React.FC = () => {
       const avg7 = avg(delivPerArr, 7);
       const avg30 = avg(delivPerArr, 30);
       const avg180 = avg(delivPerArr, 180);
-      return data.map((row, idx) => {
+      
+      const indices = data.map((row, idx) => {
         const a1 = avg1[idx], a3 = avg3[idx], a7 = avg7[idx], a30 = avg30[idx], a180 = avg180[idx];
-        if (
-          a1 !== null && a3 !== null && a7 !== null && a30 !== null && a180 !== null &&
-          a1 > a3 && a3 > a7 && a7 > a30 && a30 > a180
-        ) {
-          return idx;
+        
+        // Use shorter timeframes when there's insufficient data
+        let isGreenMarker = false;
+        
+        if (data.length >= 180) {
+          // Full analysis with 180-day average
+          isGreenMarker = (
+            a1 !== null && a3 !== null && a7 !== null && a30 !== null && a180 !== null &&
+            a1 > a3 && a3 > a7 && a7 > a30 && a30 > a180
+          );
+        } else if (data.length >= 30) {
+          // Use 30-day as the longest average
+          isGreenMarker = (
+            a1 !== null && a3 !== null && a7 !== null && a30 !== null &&
+            a1 > a3 && a3 > a7 && a7 > a30
+          );
+        } else if (data.length >= 7) {
+          // Use 7-day as the longest average
+          isGreenMarker = (
+            a1 !== null && a3 !== null && a7 !== null &&
+            a1 > a3 && a3 > a7
+          );
+        } else if (data.length >= 3) {
+          // Use 3-day as the longest average
+          isGreenMarker = (
+            a1 !== null && a3 !== null &&
+            a1 > a3
+          );
         }
-        return null;
+        
+        if (isGreenMarker) {
+          console.log(`Green marker found on ${row.trade_date}:`, { a1, a3, a7, a30, a180, dataLength: data.length });
+        }
+        
+        return isGreenMarker ? idx : null;
       }).filter((v): v is number => v !== null);
+      
+      console.log('Green marker analysis:', {
+        dataLength: data.length,
+        delivPerArr: delivPerArr.slice(0, 10), // First 10 values
+        avg1Sample: avg1.slice(0, 10),
+        avg3Sample: avg3.slice(0, 10),
+        avg7Sample: avg7.slice(0, 10),
+        avg30Sample: avg30.slice(0, 10),
+        avg180Sample: avg180.slice(0, 10),
+        foundIndices: indices,
+        totalMarkers: indices.length,
+        // Show actual delivery percentage values
+        sampleDelivPer: data.slice(0, 5).map(row => ({ date: row.trade_date, deliv_per: row.deliv_per }))
+      });
+      
+      return indices;
     }
 
     // State for green dot marker positions
@@ -513,6 +656,13 @@ const StockDetailPage: React.FC = () => {
             key: row.trade_date + '-dot',
           };
         }).filter(Boolean) as { left: number; top: number; key: string }[];
+        
+        console.log('Dot positions update:', {
+          indicesCount: indices.length,
+          positionsCount: positions.length,
+          positions: positions.slice(0, 3) // First 3 positions
+        });
+        
         setDotPositions(positions);
       }
       updateDotPositions();

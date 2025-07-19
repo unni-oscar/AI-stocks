@@ -35,24 +35,24 @@ RUN php -m | grep -i mysql
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www
+WORKDIR /var/www/html
 
 # Copy the entire application first
-COPY . /var/www
+COPY . /var/www/html
 
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www && chmod -R 755 /var/www
+RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
 # Create storage directories and set permissions
-RUN mkdir -p /var/www/storage/logs \
-    && mkdir -p /var/www/storage/framework/cache \
-    && mkdir -p /var/www/storage/framework/sessions \
-    && mkdir -p /var/www/storage/framework/views \
-    && chmod -R 775 /var/www/storage \
-    && chown -R www-data:www-data /var/www/storage
+RUN mkdir -p /var/www/html/storage/logs \
+    && mkdir -p /var/www/html/storage/framework/cache \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && mkdir -p /var/www/html/storage/framework/views \
+    && chmod -R 775 /var/www/html/storage \
+    && chown -R www-data:www-data /var/www/html/storage
 
 # Copy nginx configuration
 COPY docker/nginx.conf /etc/nginx/sites-available/default

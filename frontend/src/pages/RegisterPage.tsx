@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import api from '../services/api'
 
 const RegisterPage: React.FC = () => {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [passwordConfirmation, setPasswordConfirmation] = useState('')
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -15,41 +16,21 @@ const RegisterPage: React.FC = () => {
     setLoading(true)
     setError(null)
 
-    // Validate password confirmation
-    if (password !== passwordConfirmation) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
-    }
+
 
     try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ 
-          name, 
-          email, 
-          password, 
-          password_confirmation: passwordConfirmation 
-        })
+      const response = await api.post('/register', { 
+        name, 
+        email, 
+        password
       })
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Registration failed')
-      }
-      
-      const data = await response.json()
-      
       // Auto-login after successful registration
-      localStorage.setItem('auth_token', data.data.token)
+      localStorage.setItem('auth_token', response.data.data.token)
       navigate('/dashboard')
     } catch (err: any) {
       console.error('Registration error:', err)
-      setError(err.message || 'Registration failed')
+      setError(err.response?.data?.message || err.message || 'Registration failed')
     } finally {
       setLoading(false)
     }
@@ -104,18 +85,7 @@ const RegisterPage: React.FC = () => {
             />
           </div>
           
-          <div className="mb-6">
-            <label className="block mb-1 font-medium text-gray-700">Confirm Password</label>
-            <input
-              type="password"
-              className="w-full border border-gray-300 px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={passwordConfirmation}
-              onChange={e => setPasswordConfirmation(e.target.value)}
-              required
-              minLength={8}
-              placeholder="Confirm your password"
-            />
-          </div>
+
           
           <button
             type="submit"

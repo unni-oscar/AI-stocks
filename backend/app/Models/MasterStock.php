@@ -118,4 +118,70 @@ class MasterStock extends Model
             $q->where('name', $isubgroupName);
         });
     }
+
+    /**
+     * Update or create master stock from bhavcopy data and populate company name from Equity.csv
+     */
+    public static function updateFromBhavcopyData($symbol, $series)
+    {
+        // Get the latest bhavcopy data for this symbol
+        $latestData = \App\Models\BhavcopyData::where('symbol', $symbol)
+            ->where('series', $series)
+            ->orderBy('trade_date', 'desc')
+            ->first();
+
+        if (!$latestData) {
+            return null;
+        }
+
+        // Try to get company name from Equity.csv
+        $companyName = self::getCompanyNameFromEquityCsv($symbol);
+
+        // Create or update master stock
+        $masterStock = self::updateOrCreate(
+            ['symbol' => $symbol, 'series' => $series],
+            [
+                'company_name' => $companyName,
+                'is_active' => true,
+                'security_name' => $companyName, // Use company name as security name if available
+            ]
+        );
+
+        return $masterStock;
+    }
+
+    /**
+     * Get company name from Equity.csv file
+     */
+    private static function getCompanyNameFromEquityCsv($symbol)
+    {
+        $equityCsvPath = base_path('../Equity.csv');
+        
+        if (!file_exists($equityCsvPath)) {
+            return null;
+        }
+
+        $handle = fopen($equityCsvPath, 'r');
+        if (!$handle) {
+            return null;
+        }
+
+        // Skip header
+        fgetcsv($handle);
+
+        while (($data = fgetcsv($handle)) !== false) {
+            if (count($data) >= 3) {
+                $securityId = trim($data[2]); // Security Id column
+                $issuerName = trim($data[1]); // Issuer Name column
+                
+                if (strtoupper($securityId) === strtoupper($symbol)) {
+                    fclose($handle);
+                    return $issuerName;
+                }
+            }
+        }
+
+        fclose($handle);
+        return null;
+    }
 }

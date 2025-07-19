@@ -165,6 +165,40 @@ class BhavcopyController extends Controller
 
         Log::info("Bhavcopy fetch completed for {$year}-{$monthStr}. Success: {$successCount}, Errors: {$errorCount}");
 
+        // Process downloaded files into database
+        $processSuccess = false;
+        $processErrors = [];
+        
+        if ($successCount > 0) {
+            Log::info("Processing downloaded files into database...");
+            try {
+                $command = 'app:process-bhavcopy-data';
+                $args = [
+                    '--year' => $year,
+                    '--month' => $month,
+                    '--update-master' => true
+                ];
+                
+                Log::info("Executing command: $command with args: " . json_encode($args));
+                $exitCode = \Illuminate\Support\Facades\Artisan::call($command, $args);
+                $output = \Illuminate\Support\Facades\Artisan::output();
+                
+                Log::info("Process command completed with exit code: $exitCode");
+                Log::info("Process command output: $output");
+                
+                if ($exitCode === 0) {
+                    $processSuccess = true;
+                    Log::info("Successfully processed files into database");
+                } else {
+                    $processErrors[] = "Database processing failed with exit code: $exitCode";
+                    Log::error("Database processing failed: $output");
+                }
+            } catch (\Exception $e) {
+                $processErrors[] = "Database processing error: " . $e->getMessage();
+                Log::error("Database processing exception: " . $e->getMessage());
+            }
+        }
+
         $response = [
             'status' => 'success',
             'message' => "Fetch completed for {$year}-{$monthStr}",
@@ -175,7 +209,9 @@ class BhavcopyController extends Controller
                 'error_count' => $errorCount,
                 'total_days' => $daysInMonth,
                 'processed_days' => $processedDays,
-                'errors' => $errors
+                'errors' => $errors,
+                'database_processed' => $processSuccess,
+                'process_errors' => $processErrors
             ]
         ];
         

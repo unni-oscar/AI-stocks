@@ -22,7 +22,7 @@ class PopulateMasterStocks extends Command
      *
      * @var string
      */
-    protected $description = 'Populate master_stocks table from existing bhavcopy_data';
+    protected $description = 'Populate master_stocks table from existing bhavcopy_data and Equity.csv';
 
     /**
      * Execute the console command.
@@ -48,7 +48,7 @@ class PopulateMasterStocks extends Command
 
     private function populateAllStocks()
     {
-        $this->info('Populating master_stocks table from bhavcopy_data...');
+        $this->info('Populating master_stocks table from bhavcopy_data and Equity.csv...');
 
         // Get all unique symbol-series combinations
         $symbols = BhavcopyData::select('symbol', 'series')
@@ -57,6 +57,7 @@ class PopulateMasterStocks extends Command
 
         $totalSymbols = $symbols->count();
         $processedSymbols = 0;
+        $updatedWithCompanyNames = 0;
 
         $this->info("Found $totalSymbols unique symbol-series combinations");
 
@@ -65,8 +66,13 @@ class PopulateMasterStocks extends Command
 
         foreach ($symbols as $symbolData) {
             try {
-                MasterStock::updateFromBhavcopyData($symbolData->symbol, $symbolData->series);
-                $processedSymbols++;
+                $masterStock = MasterStock::updateFromBhavcopyData($symbolData->symbol, $symbolData->series);
+                if ($masterStock) {
+                    $processedSymbols++;
+                    if ($masterStock->company_name) {
+                        $updatedWithCompanyNames++;
+                    }
+                }
                 $progressBar->advance();
             } catch (\Exception $e) {
                 $this->error("Error processing {$symbolData->symbol}-{$symbolData->series}: " . $e->getMessage());
@@ -76,6 +82,7 @@ class PopulateMasterStocks extends Command
         $progressBar->finish();
         $this->newLine();
         $this->info("Successfully populated $processedSymbols out of $totalSymbols symbol-series combinations");
+        $this->info("Updated $updatedWithCompanyNames stocks with company names from Equity.csv");
     }
 
     private function populateSymbol($symbol)
@@ -94,9 +101,14 @@ class PopulateMasterStocks extends Command
 
         foreach ($series as $seriesCode) {
             try {
-                MasterStock::updateFromBhavcopyData($symbol, $seriesCode);
-                $processedSeries++;
-                $this->info("  Processed $symbol-$seriesCode");
+                $masterStock = MasterStock::updateFromBhavcopyData($symbol, $seriesCode);
+                if ($masterStock) {
+                    $processedSeries++;
+                    $this->info("  Processed $symbol-$seriesCode");
+                    if ($masterStock->company_name) {
+                        $this->info("    Company name: {$masterStock->company_name}");
+                    }
+                }
             } catch (\Exception $e) {
                 $this->error("Error processing $symbol-$seriesCode: " . $e->getMessage());
             }
@@ -114,9 +126,9 @@ class PopulateMasterStocks extends Command
             
             if ($stock) {
                 $this->info("Successfully populated master stock for $symbol-$series");
-                $this->info("Latest close: " . $stock->latest_close);
-                $this->info("Latest trade date: " . $stock->latest_trade_date);
-                $this->info("Total trading days: " . $stock->total_trading_days);
+                $this->info("Company name: " . ($stock->company_name ?: 'Not found'));
+                $this->info("Security name: " . ($stock->security_name ?: 'Not found'));
+                $this->info("Is active: " . ($stock->is_active ? 'Yes' : 'No'));
             } else {
                 $this->error("No data found for $symbol-$series");
             }

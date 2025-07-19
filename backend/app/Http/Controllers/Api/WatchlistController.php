@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Watchlist;
+use App\Models\BhavcopyData;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class WatchlistController extends Controller
 {
-    // List all stocks in the user's watchlist
+    // List all stocks in the user's watchlist with detailed information
     public function index(Request $request)
     {
         $user = $request->user();
@@ -23,16 +25,82 @@ class WatchlistController extends Controller
         // Debug: Log user ID
         \Log::info('Watchlist request for user ID: ' . $user->id);
         
+        // Get watchlist symbols
+        $watchlistSymbols = Watchlist::where('user_id', $user->id)->pluck('symbol');
+        
         // Debug: Check if data exists
-        $count = Watchlist::where('user_id', $user->id)->count();
+        $count = $watchlistSymbols->count();
         \Log::info('Watchlist count for user ' . $user->id . ': ' . $count);
         
-        $watchlist = Watchlist::where('user_id', $user->id)->pluck('symbol');
+        if ($count === 0) {
+            return response()->json(['status' => 'success', 'data' => []]);
+        }
+        
+        // Get the latest date from bhavcopy_data
+        $latestDate = BhavcopyData::max('trade_date');
+        
+        if (!$latestDate) {
+            return response()->json(['status' => 'success', 'data' => []]);
+        }
+        
+        // Get the previous date for price change calculation
+        $previousDate = BhavcopyData::where('trade_date', '<', $latestDate)
+            ->max('trade_date');
+        
+        // Get detailed stock information for watchlist symbols with company names
+        $watchlistData = DB::table('bhavcopy_data as current')
+            ->leftJoin('master_stocks', 'current.symbol', '=', 'master_stocks.symbol')
+            ->select([
+                'current.symbol',
+                'master_stocks.company_name',
+                'current.close_price as current_price',
+                'current.trade_date',
+                DB::raw('0 as price_change_percent'), // Will calculate below
+                DB::raw('0 as price_change_absolute') // Will calculate below
+            ])
+            ->whereIn('current.symbol', $watchlistSymbols)
+            ->where('current.trade_date', $latestDate)
+            ->where('current.series', 'EQ') // Only get EQ series for watchlist
+            ->get();
+        
+        // Debug: Log the raw data
+        \Log::info('Watchlist raw data: ' . $watchlistData->toJson());
+        
+        // Calculate price changes if we have previous date data
+        if ($previousDate) {
+            $previousData = DB::table('bhavcopy_data')
+                ->select('symbol', 'close_price')
+                ->whereIn('symbol', $watchlistSymbols)
+                ->where('trade_date', $previousDate)
+                ->where('series', 'EQ')
+                ->pluck('close_price', 'symbol');
+            
+            // Calculate price changes
+            $watchlistData->each(function ($item) use ($previousData) {
+                $previousPrice = $previousData->get($item->symbol);
+                if ($previousPrice) {
+                    $item->price_change_absolute = $item->current_price - $previousPrice;
+                    $item->price_change_percent = round((($item->current_price - $previousPrice) / $previousPrice) * 100, 2);
+                }
+            });
+        }
+        
+        // Format the data like the working pages do
+        $formattedData = $watchlistData->map(function ($item) {
+            return [
+                'symbol' => $item->symbol,
+                'company_name' => $item->company_name ?? $item->symbol, // Use company name if available, otherwise fall back to symbol
+                'current_price' => round($item->current_price, 2),
+                'price_change_percent' => $item->price_change_percent,
+                'price_change_absolute' => $item->price_change_absolute,
+                'trade_date' => $item->trade_date
+            ];
+        });
         
         // Debug: Log the result
-        \Log::info('Watchlist data: ' . $watchlist->toJson());
+        \Log::info('Watchlist detailed data count: ' . $formattedData->count());
         
-        return response()->json(['status' => 'success', 'data' => $watchlist]);
+        return response()->json(['status' => 'success', 'data' => $formattedData]);
     }
 
     // Add a stock to the user's watchlist

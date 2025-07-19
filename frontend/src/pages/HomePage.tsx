@@ -60,11 +60,6 @@ const teams = [
 const HomePage: React.FC = () => {
   return (
     <div className="kt-container-fixed py-8">
-      {/* Breadcrumb and Title */}
-      <div className="mb-6">
-        <div className="text-sm text-gray-400 mb-1">Home</div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-      </div>
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -388,17 +383,7 @@ const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="flex flex-col md:flex-row items-center justify-between mt-8 text-sm text-gray-400 gap-2 pb-2">
-        <div>2025 &copy; <span className="font-medium text-gray-500">Keenthemes Inc.</span></div>
-        <div className="flex gap-4">
-          <a href="#" className="hover:underline">Docs</a>
-          <a href="#" className="hover:underline">Purchase</a>
-          <a href="#" className="hover:underline">FAQ</a>
-          <a href="#" className="hover:underline">Support</a>
-          <a href="#" className="hover:underline">License</a>
-        </div>
-      </footer>
+     
     </div>
   )
 }

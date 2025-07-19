@@ -37,11 +37,13 @@ Route::get('/analysis/delivery', [StockAnalysisController::class, 'getDeliveryAn
 Route::get('/analysis/summary', [StockAnalysisController::class, 'getSummaryStats']);
 Route::get('/analysis/master-stocks', [StockAnalysisController::class, 'getMasterStocks']);
 Route::get('/analysis/stock/{symbol}', [StockAnalysisController::class, 'getStockDetails']);
+Route::get('/analysis/debug-sector/{sectorId}', [StockAnalysisController::class, 'debugSector']);
 Route::get('/analysis/top-gainers', [StockAnalysisController::class, 'getTopGainers']);
 Route::get('/analysis/top-losers', [StockAnalysisController::class, 'getTopLosers']);
 Route::get('/analysis/52-week-high', [StockAnalysisController::class, 'get52WeekHigh']);
 Route::get('/analysis/52-week-low', [StockAnalysisController::class, 'get52WeekLow']);
 Route::get('/analysis/most-active', [StockAnalysisController::class, 'getMostActive']);
+Route::get('/analysis/highest-deliv-per', [StockAnalysisController::class, 'getHighestDeliveryPercentage']);
 Route::get('/companies', [StockAnalysisController::class, 'getCompanies']);
 Route::get('/companies/{sectorId}', [StockAnalysisController::class, 'getCompanies']);
 Route::get('/companies/{sectorId}/{industryId}', [StockAnalysisController::class, 'getCompanies']);

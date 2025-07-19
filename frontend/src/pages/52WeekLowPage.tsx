@@ -51,7 +51,14 @@ const WeekLowPage: React.FC = () => {
         if (selectedDate) {
           params.append('date', selectedDate);
         }
-        const response = await fetch(`/api/analysis/52-week-low?${params}`);
+        const response = await fetch(`http://localhost:3035/api/analysis/52-week-low?${params}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          toast.error(`Error: ${errorData.message || 'Failed to fetch 52 week low data'}`);
+          return;
+        }
+        
         const result: ApiResponse = await response.json();
         
         if (result.status === 'success') {

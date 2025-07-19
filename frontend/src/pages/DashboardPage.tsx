@@ -2,382 +2,84 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { removeToken } from '@/utils/auth'
 
-interface ApiResponse {
-  status: string
-  message: string
-  data: {
-    framework: string
-    version: string
-    database: string
-    port: string
-    timestamp: string
-  }
-}
+const tabList = [
+  { key: 'gainers', label: 'Top Gainers', link: '/top-gainers', api: '/analysis/top-gainers', icon: '📈' },
+  { key: 'losers', label: 'Top Losers', link: '/top-losers', api: '/analysis/top-losers', icon: '📉' },
+  { key: 'active', label: 'Most Active', link: '/most-active', api: '/analysis/most-active', icon: '🔥' },
+  { key: 'high', label: '52 Week High', link: '/top-gainers', api: '/analysis/52-week-high', icon: '🏆' },
+  { key: 'low', label: '52 Week Low', link: '/52-week-low', api: '/analysis/52-week-low', icon: '📊' },
+  { key: 'highest_deliv', label: 'Highest Delivery %', link: '/highest-deliv-per', api: '/analysis/highest-deliv-per', icon: '🚚' },
+];
 
-interface DeliveryAnalysis {
-  symbol: string
-  series: string
-  latest_close: number
-  latest_volume: string
-  delivery_percentages: {
-    latest: number
-    avg_3_days: number
-    avg_7_days: number
-    avg_30_days: number
-    avg_180_days: number
-  }
-  condition_met: number
-  condition_type: string
-  is_green: boolean
-}
-
-interface AnalysisResponse {
-  status: string
-  data: {
-    stocks: DeliveryAnalysis[]
-    total_stocks: number
-    latest_date: string
-    analysis_date: string
-  }
-}
+const API_BASE_URL = 'http://localhost:3035/api';
 
 const DashboardPage: React.FC = () => {
-  const [apiData, setApiData] = useState<ApiResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [deliveryAnalysis, setDeliveryAnalysis] = useState<AnalysisResponse | null>(null)
-  const [analysisLoading, setAnalysisLoading] = useState(false)
-  const [analysisError, setAnalysisError] = useState<string | null>(null)
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('gainers');
+  const [tabData, setTabData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchApiData = async () => {
+    const fetchTabData = async () => {
+      setLoading(true);
+      setError(null);
+      setTabData([]);
+      const tab = tabList.find(t => t.key === activeTab);
+      if (!tab) return;
       try {
-        setLoading(true)
-        // Use direct backend URL since we removed the proxy
-        const response = await fetch('/api/test', {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await fetch(`${API_BASE_URL}${tab.api}`);
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          setError('Failed to fetch data');
+          setTabData([]);
+          setLoading(false);
+          return;
         }
-        const data = await response.json()
-        setApiData(data)
-        setError(null)
+        const result = await response.json();
+        // All endpoints return { status, data: { stocks: [...] } }
+        setTabData(result.data?.stocks || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data')
-        console.error('API Error:', err)
+        setError('Network error');
+        setTabData([]);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
+    fetchTabData();
+  }, [activeTab]);
 
-    fetchApiData()
-  }, [])
+  const showData = tabData.slice(0, 5);
+  const moreLink = tabList.find(tab => tab.key === activeTab)?.link || '#';
 
-  useEffect(() => {
-    const fetchDeliveryAnalysis = async () => {
-      try {
-        setAnalysisLoading(true)
-        setAnalysisError(null)
-        
-        const token = localStorage.getItem('auth_token')
-        const response = await fetch('/api/analysis/delivery', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-          }
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          setDeliveryAnalysis(data)
-        } else {
-          const errorData = await response.json()
-          setAnalysisError(errorData.message || 'Failed to fetch delivery analysis')
-        }
-      } catch (err) {
-        setAnalysisError('Network error occurred')
-        console.error('Delivery Analysis Error:', err)
-      } finally {
-        setAnalysisLoading(false)
-      }
-    }
-
-    fetchDeliveryAnalysis()
-  }, [])
-
-  const getConditionColor = (conditionMet: number) => {
-    switch (conditionMet) {
-      case 1:
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 2:
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 3:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 4:
-        return 'bg-purple-100 text-purple-800 border-purple-200'
+  // Table header/cell classes from /watchlist
+  const getSortableHeaderClass = (field: string) => {
+    let widthClass = '';
+    let alignmentClass = '';
+    switch (field) {
+      case 'company_name':
+        widthClass = 'w-1/2';
+        alignmentClass = 'text-left';
+        break;
+      case 'current_price':
+      case 'price_change_percent':
+      case 'price_change_absolute':
+        widthClass = 'w-1/6';
+        alignmentClass = 'text-right';
+        break;
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
+        widthClass = 'w-1/6';
+        alignmentClass = 'text-right';
     }
-  }
-
-  const getConditionBadge = (conditionMet: number) => {
-    switch (conditionMet) {
-      case 1:
-        return '🔥 Best'
-      case 2:
-        return '⭐ Strong'
-      case 3:
-        return '📈 Good'
-      case 4:
-        return '✅ Positive'
-      default:
-        return '❓ Unknown'
-    }
-  }
+    return `px-4 py-3 ${alignmentClass} ${widthClass}`;
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">
-            Real-time market overview and delivery percentage analysis
-          </p>
-        </div>
-        <div className="flex space-x-4">
-          <Link
-            to="/bhavcopy"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
-            NSE Data Fetcher
-          </Link>
-          <Link
-            to="/process"
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
-          >
-            CSV Processor
-          </Link>
-          <Link
-            to="/stocks"
-            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition"
-          >
-            All Stocks
-          </Link>
-          <button
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            onClick={() => {
-              removeToken()
-              navigate('/login')
-            }}
-          >
-            Logout
-          </button>
-        </div>
+      <div className="mt-4 mb-6">
+        <h1 className="text-3xl text-gray-900">Dashboard</h1>
       </div>
 
-      {/* API Communication Status */}
-      <div className="card mb-8">
-        <h2 className="text-xl font-semibold mb-4">Backend API Status</h2>
-        {loading && (
-          <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span className="text-gray-600">Connecting to backend...</span>
-          </div>
-        )}
-        
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <span className="text-red-600 text-xl mr-2">❌</span>
-              <div>
-                <p className="font-medium text-red-800">API Connection Failed</p>
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {apiData && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center">
-              <span className="text-green-600 text-xl mr-2">✅</span>
-              <div>
-                <p className="font-medium text-green-800">Backend Connected Successfully!</p>
-                <div className="mt-2 text-sm text-green-700">
-                  <p><strong>Message:</strong> {apiData.message}</p>
-                  <p><strong>Framework:</strong> {apiData.data.framework} {apiData.data.version}</p>
-                  <p><strong>Database:</strong> {apiData.data.database}</p>
-                  <p><strong>Port:</strong> {apiData.data.port}</p>
-                  <p><strong>Timestamp:</strong> {new Date(apiData.data.timestamp).toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Access Tools */}
-      <div className="card mb-8">
-        <h2 className="text-xl font-semibold mb-4">Quick Access Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            to="/bhavcopy"
-            className="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <div className="p-2 bg-blue-100 rounded-lg mr-4">
-              <span className="text-blue-600 text-2xl">📥</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-900">NSE Data Fetcher</h3>
-              <p className="text-sm text-blue-700">Download NSE bhavcopy CSV files</p>
-            </div>
-          </Link>
-          
-          <Link
-            to="/process"
-            className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-          >
-            <div className="p-2 bg-green-100 rounded-lg mr-4">
-              <span className="text-green-600 text-2xl">⚙️</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-green-900">CSV Processor</h3>
-              <p className="text-sm text-green-700">Process CSV files into database</p>
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      {/* Delivery Percentage Analysis */}
-      <div className="card mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Delivery Percentage Analysis</h2>
-          {deliveryAnalysis && (
-            <div className="text-sm text-gray-600">
-              Latest: {deliveryAnalysis.data.latest_date} | 
-              Found: {deliveryAnalysis.data.total_stocks} stocks
-            </div>
-          )}
-        </div>
-
-        {analysisLoading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Analyzing delivery data...</span>
-          </div>
-        )}
-
-        {analysisError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <span className="text-red-600 text-xl mr-2">❌</span>
-              <div>
-                <p className="font-medium text-red-800">Analysis Failed</p>
-                <p className="text-sm text-red-600">{analysisError}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {deliveryAnalysis && deliveryAnalysis.data.stocks.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Volume
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Latest
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    3 Days
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    7 Days
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    30 Days
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    180 Days
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Condition
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {deliveryAnalysis.data.stocks.map((stock, index) => (
-                  <tr key={index} className={stock.is_green ? 'bg-green-50' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{stock.symbol}</div>
-                      <div className="text-sm text-gray-500">{stock.series}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₹{stock.latest_close}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stock.latest_volume}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${stock.delivery_percentages.latest > 50 ? 'text-green-600' : 'text-red-600'}`}>
-                        {stock.delivery_percentages.latest}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${stock.delivery_percentages.avg_3_days > 50 ? 'text-green-600' : 'text-red-600'}`}>
-                        {stock.delivery_percentages.avg_3_days}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${stock.delivery_percentages.avg_7_days > 50 ? 'text-green-600' : 'text-red-600'}`}>
-                        {stock.delivery_percentages.avg_7_days}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${stock.delivery_percentages.avg_30_days > 50 ? 'text-green-600' : 'text-red-600'}`}>
-                        {stock.delivery_percentages.avg_30_days}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${stock.delivery_percentages.avg_180_days > 50 ? 'text-green-600' : 'text-red-600'}`}>
-                        {stock.delivery_percentages.avg_180_days}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getConditionColor(stock.condition_met)}`}>
-                        {getConditionBadge(stock.condition_met)}
-                      </span>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {stock.condition_type}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {deliveryAnalysis && deliveryAnalysis.data.stocks.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No stocks found matching the delivery percentage conditions.</p>
-            <p className="text-sm text-gray-400 mt-2">Try processing more data or check if data exists in the database.</p>
-          </div>
-        )}
-      </div>
+      
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="card">
@@ -392,7 +94,6 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="card">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -405,7 +106,6 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="card">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -418,7 +118,6 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
-
         <div className="card">
           <div className="flex items-center">
             <div className="p-2 bg-orange-100 rounded-lg">
@@ -433,48 +132,135 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Top Gainers</h2>
-          <div className="space-y-3">
-            {[
-              { name: 'RELIANCE', price: '₹2,450.00', change: '+3.2%' },
-              { name: 'TCS', price: '₹3,680.50', change: '+2.8%' },
-              { name: 'HDFC BANK', price: '₹1,650.25', change: '+2.1%' },
-              { name: 'INFOSYS', price: '₹1,480.75', change: '+1.9%' },
-            ].map((stock, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{stock.name}</p>
-                  <p className="text-sm text-gray-600">{stock.price}</p>
-                </div>
-                <span className="text-green-600 font-semibold">{stock.change}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Top Losers</h2>
-          <div className="space-y-3">
-            {[
-              { name: 'WIPRO', price: '₹420.30', change: '-2.8%' },
-              { name: 'TECH MAHINDRA', price: '₹1,180.45', change: '-2.1%' },
-              { name: 'BHARTI AIRTEL', price: '₹890.20', change: '-1.7%' },
-              { name: 'ITC', price: '₹450.80', change: '-1.3%' },
-            ].map((stock, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{stock.name}</p>
-                  <p className="text-sm text-gray-600">{stock.price}</p>
-                </div>
-                <span className="text-red-600 font-semibold">{stock.change}</span>
-              </div>
-            ))}
-          </div>
+    {/* Quick Access Tools */}
+    <div className="card mb-8">
+        <h2 className="text-xl font-semibold mb-4">Quick Access Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link
+            to="/bhavcopy"
+            className="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            <div className="p-2 bg-blue-100 rounded-lg mr-4">
+              <span className="text-blue-600 text-2xl">📥</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-blue-900">NSE Data Fetcher</h3>
+              <p className="text-sm text-blue-700">Download NSE bhavcopy CSV files</p>
+            </div>
+          </Link>
+          <Link
+            to="/process"
+            className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+          >
+            <div className="p-2 bg-green-100 rounded-lg mr-4">
+              <span className="text-green-600 text-2xl">⚙️</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-green-900">CSV Processor</h3>
+              <p className="text-sm text-green-700">Process CSV files into database</p>
+            </div>
+          </Link>
         </div>
       </div>
+      
 
+      {/* Tab Content */}
+      <div className="card mb-8">
+        {/* Tab Bar */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex space-x-8" aria-label="Tabs">
+          {tabList.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === tab.key
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              <span className="mr-2 text-lg align-middle">{tab.icon}</span>{tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+        {/* <h2 className="text-xl font-semibold mb-4">{tabList.find(tab => tab.key === activeTab)?.label}</h2> */}
+        <div className="overflow-x-auto rounded border">
+          <table className="min-w-full bg-white" style={{ tableLayout: 'fixed' }}>
+            <thead>
+              <tr className="text-left text-xs text-gray-500">
+                <th className={getSortableHeaderClass('company_name')}>Name</th>
+                <th className={getSortableHeaderClass('current_price')}>Current Price</th>
+                <th className={getSortableHeaderClass('price_change_percent')}>Change %</th>
+                <th className={getSortableHeaderClass('price_change_absolute')}>Change ₹</th>
+                {activeTab === 'highest_deliv' && (
+                  <th className={getSortableHeaderClass('delivery_percent')}>Delivery %</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+              ) : error ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-red-500">{error}</td></tr>
+              ) : showData.length === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">No data found.</td></tr>
+              ) : (
+                showData.map((item, idx) => (
+                  <tr key={item.symbol + '-' + idx} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 text-left">
+                      <div>
+                        <a
+                          href={`/stocks/${encodeURIComponent(item.symbol || '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-900 hover:text-gray-700"
+                        >
+                          {item.company_name || 'Unknown Company'}
+                        </a>
+                        {/* <div className="text-xs text-gray-500 mt-1">
+                          {item.symbol || 'Unknown Symbol'}
+                        </div> */}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                      ₹{Number(item.current_price ?? item.latest_close ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+                        Number(item.price_change_percent ?? item.change_percent ?? 0) >= 0
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {Number(item.price_change_percent ?? item.change_percent ?? 0) >= 0 ? '+' : ''}{Number(item.price_change_percent ?? item.change_percent ?? 0).toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      <span className={Number(item.price_change_absolute ?? item.change_absolute ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {Number(item.price_change_absolute ?? item.change_absolute ?? 0) >= 0 ? '+' : ''}₹{Number(item.price_change_absolute ?? item.change_absolute ?? 0).toFixed(2)}
+                      </span>
+                    </td>
+                    {activeTab === 'highest_deliv' && (
+                      <td className="px-4 py-3 text-right">
+                        <span className="inline-block px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">
+                          {Number(item.delivery_percent ?? 0).toFixed(2)}%
+                        </span>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {tabData.length > 5 && !loading && !error && (
+          <div className="flex justify-end mt-2">
+            <Link to={moreLink} className="text-blue-600 hover:underline font-medium cursor-pointer">show more...</Link>
+          </div>
+        )}
+      </div>
+
+      {/* ...rest of the dashboard (recent market activity, etc.) ... */}
       <div className="card mt-8">
         <h2 className="text-xl font-semibold mb-4">Recent Market Activity</h2>
         <div className="space-y-4">
@@ -486,7 +272,6 @@ const DashboardPage: React.FC = () => {
             </div>
             <span className="text-sm text-gray-500">2 hours ago</span>
           </div>
-          
           <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-lg">
             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
             <div className="flex-1">
@@ -495,7 +280,6 @@ const DashboardPage: React.FC = () => {
             </div>
             <span className="text-sm text-gray-500">4 hours ago</span>
           </div>
-          
           <div className="flex items-center space-x-4 p-4 bg-yellow-50 rounded-lg">
             <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
             <div className="flex-1">

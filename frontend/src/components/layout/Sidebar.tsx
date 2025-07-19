@@ -7,10 +7,7 @@ const sections = [
     header: 'Main',
     links: [
       { path: '/dashboard', label: 'Dashboard' },
-      { path: '/bhavcopy', label: 'Download Data' },
-      { path: '/process', label: 'Process Data' },
       { path: '/stocks', label: 'All Stocks' },
-      { path: '/stock-master', label: 'Stock Master' },
       { path: '/delivery-spikes', label: 'Delivery Spikes' },
       { path: '/top-gainers', label: 'Top Gainers' },
       { path: '/top-losers', label: 'Top Losers' },
@@ -20,15 +17,15 @@ const sections = [
       { path: '/companies', label: 'Companies' },
       { path: '/watchlist', label: 'Watchlist' },
       { path: '/profile', label: 'Profile' },
-      { path: '/dummy', label: 'Dummy' },
     ],
   },
   {
-    header: 'Billing',
+    header: 'Admin',
     links: [
-      { path: '/billing/plans', label: 'Plans' },
-      { path: '/billing/payment-methods', label: 'Payment Methods' },
-      { path: '/billing/invoices', label: 'Invoices' },
+      { path: '/bhavcopy', label: 'Download Data' },
+      { path: '/process', label: 'Process Data' },
+      { path: '/stock-master', label: 'Stock Master' },
+      { path: '/dummy', label: 'Dummy' },
     ],
   },
   {
@@ -88,7 +85,7 @@ const Sidebar: React.FC = () => {
             {sections.map((section) => (
               <div key={section.header}>
                 <button
-                  className="flex items-center w-full text-left text-base font-bold text-gray-900 py-2 focus:outline-none"
+                  className="flex items-center w-full text-left text-base font-normal text-gray-900 py-2 focus:outline-none"
                   onClick={() => handleToggle(section.header)}
                 >
                   {section.header}

@@ -62,7 +62,7 @@ const StockMasterPage: React.FC = () => {
   const loadFilterOptions = async () => {
     try {
       const token = getToken()
-      const response = await fetch('/api/stock-master/filter-options', {
+      const response = await fetch('http://localhost:3035/api/stock-master/filter-options', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ const StockMasterPage: React.FC = () => {
   const loadStatistics = async () => {
     try {
       const token = getToken()
-      const response = await fetch('/api/stock-master/statistics', {
+      const response = await fetch('http://localhost:3035/api/stock-master/statistics', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ const StockMasterPage: React.FC = () => {
         ...filters,
       })
 
-      const response = await fetch(`/api/stock-master/stocks?${params}`, {
+      const response = await fetch(`http://localhost:3035/api/stock-master/stocks?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -149,7 +149,7 @@ const StockMasterPage: React.FC = () => {
       const formData = new FormData()
       formData.append('csv_file', file)
 
-      const response = await fetch('/api/stock-master/upload-csv', {
+      const response = await fetch('http://localhost:3035/api/stock-master/upload-csv', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

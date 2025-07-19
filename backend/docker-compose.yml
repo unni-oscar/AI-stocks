@@ -2,12 +2,14 @@ version: '3.8'
 
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3035:80"
-    volumes:
-      - .:/var/www
-      - ./storage:/var/www/storage
+    # volumes:
+    #   - .:/var/www/html
+    #   - ./storage:/var/www/html/storage
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
@@ -53,4 +55,4 @@ volumes:
 
 networks:
   ai-stocks-network:
-    driver: bridge 
+    external: true 

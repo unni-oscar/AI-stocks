@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import api from '../services/api'
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('')
@@ -13,27 +14,12 @@ const LoginPage: React.FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Response error:', response.status, errorText)
-        throw new Error('Login failed')
-      }
-      
-      const data = await response.json()
-      localStorage.setItem('auth_token', data.data.token)
+      const response = await api.post('/login', { email, password })
+      localStorage.setItem('auth_token', response.data.data.token)
       navigate('/dashboard')
     } catch (err: any) {
       console.error('Login error:', err)
-      setError(err.message || 'Login failed')
+      setError(err.response?.data?.message || err.message || 'Login failed')
     } finally {
       setLoading(false)
     }
